@@ -1,12 +1,12 @@
-set(DOCUMENTATION "OTB module template.")
+set(DOCUMENTATION "OTB external module for Fast Features Selection.")
 
-# OTB_module() defines the module dependencies in ExternalTemplate
-# ExternalTemplate depends on OTBCommon and OTBApplicationEngine
-# The testing module in ExternalTemplate depends on OTBTestKernel
+# OTB_module() defines the module dependencies in FastFeaturesSelection
+# FastFeaturesSelection depends on OTBCommon and OTBApplicationEngine
+# The testing module in FastFeaturesSelection depends on OTBTestKernel
 # and OTBCommandLine
 
 # define the dependencies of the include module and the tests
-otb_module(ExternalTemplate
+otb_module(FastFeaturesSelection
   DEPENDS
     OTBCommon
     OTBApplicationEngine

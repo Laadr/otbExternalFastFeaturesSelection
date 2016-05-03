@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.9)
-project(ExternalTemplate)
-#set(ExternalTemplate_LIBRARIES ExternalTemplate)
+project(FastFeaturesSelection)
+#set(FastFeaturesSelection_LIBRARIES FastFeaturesSelection)
 
 if(NOT OTB_SOURCE_DIR)
     find_package(OTB REQUIRED)

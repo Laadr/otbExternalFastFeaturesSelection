@@ -5,7 +5,7 @@ class EmptyApp : public otb::Wrapper::Application
 {
 public:
   typedef EmptyApp Self;
-  typedef itk::SmartPointer<Self> Pointer; 
+  typedef itk::SmartPointer<Self> Pointer;
 
   itkNewMacro(Self);
   itkTypeMacro(EmptyApp, otb::Wrapper::Application);
@@ -21,8 +21,8 @@ private:
   }
 
   void DoExecute()
-  {  
-    int ThisDoesNothing = 0;   
+  {
+    int ThisDoesNothing = 0;
   }
 };
 
