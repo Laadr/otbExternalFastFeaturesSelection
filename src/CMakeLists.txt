@@ -2,7 +2,7 @@
 #changed when this module is renamed.
 
 set(${otb-module}_SRC
-otbSomeFile.cxx
+otbGMM.cxx
 )
 
 add_library(${otb-module} ${${otb-module}_SRC})
