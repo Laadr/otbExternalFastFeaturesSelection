@@ -18,7 +18,7 @@ class ITK_EXPORT GMMMachineLearningModel
 {
 public:
   /** Standard class typedefs. */
-  typedef NormalBayesMachineLearningModel           Self;
+  typedef GMMMachineLearningModel                         Self;
   typedef MachineLearningModel<TInputValue, TTargetValue> Superclass;
   typedef itk::SmartPointer<Self>                         Pointer;
   typedef itk::SmartPointer<const Self>                   ConstPointer;
@@ -31,16 +31,12 @@ public:
   typedef typename Superclass::TargetListSampleType       TargetListSampleType;
   typedef typename Superclass::ConfidenceValueType        ConfidenceValueType;
 
-  typedef std::map<TargetSampleType, int> MapOfClassesType;
-  typedef std::map<int, TargetSampleType> MapOfIndicesType;
-
   /** Type of the membership function. Gaussian density function */
-  typedef typename InputSampleType::MeasurementVectorType MeasurementVectorType;
-  typedef typename InputSampleType::MeasurementVectorSizeType MeasurementVectorSizeType;
+  typedef typename InputListSampleType::MeasurementVectorType MeasurementVectorType;
 
   /** Types of the mean and the covariance calculator that will update
    *  this component's distribution parameters */
-  typedef itk::Statistics::CovarianceSampleFilter<InputSampleType> CovarianceEstimatorType;
+  typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
   typedef typename CovarianceEstimatorType::MatrixType CovarianceType;
   typedef typename CovarianceEstimatorType::MeasurementVectorRealType MeanVectorType;
 
@@ -87,12 +83,13 @@ private:
 
   /** Matrix (Cxd) containing the mean vector of each class */
   std::vector<MeanVectorType> m_Means;
+
   /** Vector of covariance matrix (dxd) of each class */
   std::vector<CovarianceType> m_Covariances;
 
   /** Map of classes */
-  MapOfClassesType m_MapOfClasses;
-  MapOfIndicesType m_MapOfIndices;
+  std::map<TargetValueType, int> m_MapOfClasses;
+  std::map<int, TargetValueType> m_MapOfIndices;
 
   /** Number of class */
   unsigned int m_classNb;
@@ -104,7 +101,7 @@ private:
   std::vector<unsigned long> m_NbSpl;
 
   /** Vector containing the proportion of samples in each class */
-  std::vector<unsigned float> m_Proportion;
+  std::vector<float> m_Proportion;
 
   // /** Vector containing features of last decomposition*/
   // vector<unsigned float> m_decompositionFeatures;

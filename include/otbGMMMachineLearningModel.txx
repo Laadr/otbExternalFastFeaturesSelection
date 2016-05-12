@@ -15,7 +15,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   m_classNb(0),
   m_featNb(0)
 {
-  m_CovarianceEstimator = CovarianceEstimatorType::New()
+  m_CovarianceEstimator = CovarianceEstimatorType::New();
 }
 
 
@@ -32,25 +32,23 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Train()
 {
   // Get pointer to samples and labels
-  typename InputListSampleType::Pointer samples = this->GetInputListSample()
-  typename TargetListSampleType::Pointer labels = this->GetTargetListSample()
+  typename InputListSampleType::Pointer samples = this->GetInputListSample();
+  typename TargetListSampleType::Pointer labels = this->GetTargetListSample();
 
   // Declare iterator for samples and labels
-  typename TargetListSampleType::ConstIterator refIterator;
-  typename InputListSampleType::ConstIterator inputIterator;
+  typename TargetListSampleType::ConstIterator refIterator = labels->Begin();
+  typename InputListSampleType::ConstIterator inputIterator = samples->Begin();
 
   // Get number of samples
   unsigned long sampleNb = samples->Size();
 
   // Get number of features
-  const MeasurementVectorSizeType measurementVectorLength = samples->GetMeasurementVectorSize();
-  m_featNb = (unsigned int) measurementVectorLength;
+  m_featNb = samples->GetMeasurementVectorSize();
 
   // Get number of classes and map indice with label
-  refIterator = labels->Begin();
   while (refIterator != labels->End())
     {
-      TargetSampleType currentLabel = refIterator.GetMeasurementVector()[0];
+      TargetValueType currentLabel = refIterator.GetMeasurementVector()[0];
       if (m_MapOfClasses.find(currentLabel) == m_MapOfClasses.end())
         {
           m_MapOfClasses[currentLabel] = m_classNb;
@@ -61,18 +59,18 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     }
 
   // Create one subsample set for each class
-  typedef itk::Statistics::Subsample< InputSampleType > ClassSampleType;
-  std::vector< ClassSampleType::Pointer > classSamples;
+  typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
+  std::vector< typename ClassSampleType::Pointer > classSamples;
   for ( unsigned int i = 0; i < m_classNb; ++i )
     {
       classSamples.push_back( ClassSampleType::New() );
-      classSamples[i]->SetSample( sample );
+      classSamples[i]->SetSample( samples );
     }
   refIterator = labels->Begin();
-  inputIterator = sample->Begin();
-  while (inputIterator != sample->End())
+  inputIterator = samples->Begin();
+  while (inputIterator != samples->End())
     {
-      TargetSampleType currentLabel = refIterator.GetMeasurementVector()[0];
+      TargetValueType currentLabel = refIterator.GetMeasurementVector()[0];
       classSamples[m_MapOfClasses[currentLabel]]->AddInstance( inputIterator.GetInstanceIdentifier() );
       ++inputIterator;
       ++refIterator;
@@ -81,14 +79,14 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // Estimate covariance matrices, mean vectors and proportions
   for ( unsigned int i = 0; i < m_classNb; ++i )
     {
-      m_NbSpl.push_back(classSamples[i]->Size())
-      m_Proportion.push_back((unsigned float) m_NbSpl[i] / (unsigned float) sampleNb)
+      m_NbSpl.push_back(classSamples[i]->Size());
+      m_Proportion.push_back((float) m_NbSpl[i] / (float) sampleNb);
 
       m_CovarianceEstimator->SetInput( classSamples[i] );
       m_CovarianceEstimator->Update();
 
-      m_Covariances.push_back(m_CovarianceEstimator->GetCovarianceMatrix())
-      m_Means.push_back(m_CovarianceEstimator->GetMean())
+      m_Covariances.push_back(m_CovarianceEstimator->GetCovarianceMatrix());
+      m_Means.push_back(m_CovarianceEstimator->GetMean());
     }
 
 }

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.9)
-project(FastFeaturesSelection)
-#set(FastFeaturesSelection_LIBRARIES FastFeaturesSelection)
+project(OTBFastFeaturesSelection)
+set(OTBFastFeaturesSelection_LIBRARIES OTBFastFeaturesSelection)
 
 if(NOT OTB_SOURCE_DIR)
     find_package(OTB REQUIRED)

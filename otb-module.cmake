@@ -6,10 +6,11 @@ set(DOCUMENTATION "OTB external module for Fast Features Selection.")
 # and OTBCommandLine
 
 # define the dependencies of the include module and the tests
-otb_module(FastFeaturesSelection
+otb_module(OTBFastFeaturesSelection
   DEPENDS
     OTBCommon
     OTBApplicationEngine
+    OTBSupervised
   TEST_DEPENDS
     OTBTestKernel
     OTBCommandLine
