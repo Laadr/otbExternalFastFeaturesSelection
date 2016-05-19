@@ -4,6 +4,7 @@
 #include "itkMacro.h"
 #include "itkLightObject.h"
 #include "itkFixedArray.h"
+#include "itkArray.h"
 #include "otbMachineLearningModel.h"
 
 #include "itkCovarianceSampleFilter.h"
@@ -37,12 +38,16 @@ public:
   /** Types of the mean and the covariance calculator that will update
    *  this component's distribution parameters */
   typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
-  typedef typename CovarianceEstimatorType::MatrixType CovarianceType;
+  typedef typename CovarianceEstimatorType::MatrixType MatrixType;
+  typedef typename MatrixType::ValueType MatrixValueType;
   typedef typename CovarianceEstimatorType::MeasurementVectorRealType MeanVectorType;
 
   /** Run-time type information (and related methods). */
   itkNewMacro(Self);
   itkTypeMacro(GMMMachineLearningModel, MachineLearningModel);
+
+  /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
+  void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, itk::VariableLengthVector<MatrixValueType> &eigenValues);
 
   /** Train the machine learning model */
   virtual void Train();
@@ -85,7 +90,7 @@ private:
   std::vector<MeanVectorType> m_Means;
 
   /** Vector of covariance matrix (dxd) of each class */
-  std::vector<CovarianceType> m_Covariances;
+  std::vector<MatrixType> m_Covariances;
 
   /** Map of classes */
   std::map<TargetValueType, int> m_MapOfClasses;
@@ -103,14 +108,20 @@ private:
   /** Vector containing the proportion of samples in each class */
   std::vector<float> m_Proportion;
 
-  // /** Vector containing features of last decomposition*/
-  // vector<unsigned float> m_decompositionFeatures;
+  /** Vector of size C containing eigenvalues of the covariance matrices */
+  std::vector<itk::VariableLengthVector<MatrixValueType> > m_eigenValues;
 
-  // /** Vector of size C containing eigenvalues of covariance matrix */
-  // std::vector<std::vector<float>> m_eigenValues;
+  /** Vector of size C of eigenvectors matrix (dxd) of each class (each line is an eigenvector) */
+  std::vector<MatrixType> m_Q;
 
-  // /** Vector of size C of eigenvectors matrix (dxd) of each class */
-  // std::vector<> m_Q;
+  /** Vector of size C of matrix (dxd) eigenvalues^(-1/2) * Q.T for each class */
+  std::vector<MatrixType> m_lambdaQ;
+
+  /** Vector of size C of scalar logdet cov - 2*log proportion for each class */
+  std::vector<MatrixValueType> m_cstDecision;
+
+  /** Regularisation constant */
+  MatrixValueType m_tau;
 
 };
 } // end namespace otb
