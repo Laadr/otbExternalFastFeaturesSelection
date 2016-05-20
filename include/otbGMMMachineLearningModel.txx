@@ -38,24 +38,25 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
 {
   m_tau = tau;
 
-  MatrixType lambda(m_featNb,m_featNb);
-  MatrixValueType logdet;
-  for (int i = 0; i < m_classNb; ++i)
+  // Precompute lambda^(-1/2) * Q and log(det lambda)
+  if (!m_Q.isempty())
   {
-    lambda.Fill(0);
-    logdet = 0;
-
-    for (int j = 0; j < m_featNb; ++j)
+    MatrixValueType lambda;
+    m_cstDecision.resize(m_classNb,0);
+    m_lambdaQ.resize(m_classNb, MatrixType(m_featNb,m_featNb));
+    for (int i = 0; i < m_classNb; ++i)
     {
-      for (int k = 0; k < m_featNb; ++k)
+      for (int j = 0; j < m_featNb; ++j)
       {
-        lambda(k,k) = 1 / sqrt(m_eigenValues[i][k] + m_tau);
-        logdet += log(m_eigenValues[i][k] + m_tau);
-      }
-    }
+        lambda = 1 / sqrt(m_eigenValues[i][j] + m_tau);
+        for (int k = 0; k < m_featNb; ++k)
+          m_lambdaQ[i](j,k) = lambda * m_Q[i](j,k);
 
-    m_cstDecision.push_back(logdet - 2*log(m_Proportion[i]));
-    m_lambdaQ.push_back(lambda * m_Q[i]);
+        m_cstDecision[i] += log(m_eigenValues[i][j] + m_tau);
+      }
+
+      m_cstDecision[i] += -2*log(m_Proportion[i]);
+    }
   }
 }
 
@@ -158,24 +159,21 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   // Precompute lambda^(-1/2) * Q and log(det lambda)
-  MatrixType lambda(m_featNb,m_featNb);
-  MatrixValueType logdet;
+  MatrixValueType lambda;
+  m_cstDecision.resize(m_classNb,0);
+  m_lambdaQ.resize(m_classNb, MatrixType(m_featNb,m_featNb));
   for (int i = 0; i < m_classNb; ++i)
   {
-    lambda.Fill(0);
-    logdet = 0;
-
     for (int j = 0; j < m_featNb; ++j)
     {
+      lambda = 1 / sqrt(m_eigenValues[i][j] + m_tau);
       for (int k = 0; k < m_featNb; ++k)
-      {
-        lambda(k,k) = 1 / sqrt(m_eigenValues[i][k] + m_tau);
-        logdet += log(m_eigenValues[i][k] + m_tau);
-      }
+        m_lambdaQ[i](j,k) = lambda * m_Q[i](j,k);
+
+      m_cstDecision[i] += log(m_eigenValues[i][j] + m_tau);
     }
 
-    m_cstDecision.push_back(logdet - 2*log(m_Proportion[i]));
-    m_lambdaQ.push_back(lambda * m_Q[i]);
+    m_cstDecision[i] += -2*log(m_Proportion[i]);
   }
 
 }
@@ -198,6 +196,8 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   input_c.SetSize(input.GetSize());
   // Compute decision function
   std::vector<MatrixValueType> decisionFct;
+  decisionFct.resize(m_classNb);
+  // #pragma omp parallel for private(input_c)
   for (int i = 0; i < m_classNb; ++i)
   {
     for (int j = 0; j < m_featNb; ++j)
@@ -206,9 +206,9 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     itk::Array<MatrixValueType> lambdaQInputC = m_lambdaQ[i] * input_c;
     MatrixValueType decisionValue = 0;
     for (int j = 0; j < m_featNb; ++j)
-      decisionValue += pow(lambdaQInputC[j],2);
+      decisionValue += lambdaQInputC[j]*lambdaQInputC[j];
 
-    decisionFct.push_back( decisionValue + m_cstDecision[i]);
+    decisionFct[i] = decisionValue + m_cstDecision[i];
   }
 
   int argmin = std::distance(decisionFct.begin(), std::min_element(decisionFct.begin(), decisionFct.end()));
