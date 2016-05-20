@@ -9,6 +9,7 @@
 #include "itkSubsample.h"
 #include "itkSymmetricEigenAnalysis.h"
 #include "otbGMMMachineLearningModel.h"
+#include "otbOpenCVUtils.h"
 
 namespace otb
 {
@@ -28,6 +29,34 @@ template <class TInputValue, class TOutputValue>
 GMMMachineLearningModel<TInputValue,TOutputValue>
 ::~GMMMachineLearningModel()
 {
+}
+
+/** Set m_tau and update m_lambdaQ and m_cstDecision */
+template <class TInputValue, class TOutputValue>
+void GMMMachineLearningModel<TInputValue,TOutputValue>
+::SetTau(MatrixValueType tau)
+{
+  m_tau = tau;
+
+  MatrixType lambda(m_featNb,m_featNb);
+  MatrixValueType logdet;
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    lambda.Fill(0);
+    logdet = 0;
+
+    for (int j = 0; j < m_featNb; ++j)
+    {
+      for (int k = 0; k < m_featNb; ++k)
+      {
+        lambda(k,k) = 1 / sqrt(m_eigenValues[i][k] + m_tau);
+        logdet += log(m_eigenValues[i][k] + m_tau);
+      }
+    }
+
+    m_cstDecision.push_back(logdet - 2*log(m_Proportion[i]));
+    m_lambdaQ.push_back(lambda * m_Q[i]);
+  }
 }
 
 /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
@@ -117,43 +146,36 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   // Decompose covariance matrix in eigenvalues/eigenvectors
-  if (m_Q.empty())
-  {
-    // MatrixType matrix(m_featNb,m_featNb);
-    m_Q.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-    itk::VariableLengthVector<MatrixValueType> newVector;
-    newVector.SetSize(m_featNb);
-    m_eigenValues.resize(m_classNb,newVector);
+  m_Q.resize(m_classNb,MatrixType(m_featNb,m_featNb));
+  itk::VariableLengthVector<MatrixValueType> newVector;
+  newVector.SetSize(m_featNb);
+  m_eigenValues.resize(m_classNb,newVector);
 
-    for (int i = 0; i < m_classNb; ++i)
-    {
-      // Make decomposition
-      Decomposition(m_Covariances[i], m_Q[i], m_eigenValues[i]);
-    }
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    // Make decomposition
+    Decomposition(m_Covariances[i], m_Q[i], m_eigenValues[i]);
   }
 
   // Precompute lambda^(-1/2) * Q and log(det lambda)
-  if (m_lambdaQ.empty())
+  MatrixType lambda(m_featNb,m_featNb);
+  MatrixValueType logdet;
+  for (int i = 0; i < m_classNb; ++i)
   {
-    MatrixType lambda(m_featNb,m_featNb);
-    MatrixValueType logdet;
-    for (int i = 0; i < m_classNb; ++i)
+    lambda.Fill(0);
+    logdet = 0;
+
+    for (int j = 0; j < m_featNb; ++j)
     {
-      lambda.Fill(0);
-      logdet = 0;
-
-      for (int j = 0; j < m_featNb; ++j)
+      for (int k = 0; k < m_featNb; ++k)
       {
-        for (int k = 0; k < m_featNb; ++k)
-        {
-          lambda(k,k) = 1 / sqrt(m_eigenValues[i][k] + m_tau);
-          logdet += log(m_eigenValues[i][k] + m_tau);
-        }
+        lambda(k,k) = 1 / sqrt(m_eigenValues[i][k] + m_tau);
+        logdet += log(m_eigenValues[i][k] + m_tau);
       }
-
-      m_cstDecision.push_back(logdet - 2*log(m_Proportion[i]));
-      m_lambdaQ.push_back(lambda * m_Q[i]);
     }
+
+    m_cstDecision.push_back(logdet - 2*log(m_Proportion[i]));
+    m_lambdaQ.push_back(lambda * m_Q[i]);
   }
 
 }
@@ -186,7 +208,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     for (int j = 0; j < m_featNb; ++j)
       decisionValue += pow(lambdaQInputC[j],2);
 
-    decisionFct.push_back( decisionValue );
+    decisionFct.push_back( decisionValue + m_cstDecision[i]);
   }
 
   int argmin = std::distance(decisionFct.begin(), std::min_element(decisionFct.begin(), decisionFct.end()));
@@ -202,6 +224,28 @@ void
 GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Save(const std::string & filename, const std::string & name)
 {
+
+  // cv::FileStorage storage(filename, cv::FileStorage::WRITE);
+  // storage << "m_Means" << m_MapOfClasses;
+  // storage << "points_2d" << points2dmatrix;
+  // storage << "keypoints" << list_keypoints_;
+  // storage << "descriptors" << descriptors_;
+
+  // std::vector<MeanVectorType> m_Means;
+  // std::vector<MatrixType> m_Covariances;
+  // std::map<TargetValueType, int> m_MapOfClasses;
+  // std::map<int, TargetValueType> m_MapOfIndices;
+  // unsigned int m_classNb;
+  // unsigned int m_featNb;
+  // std::vector<unsigned long> m_NbSpl;
+  // std::vector<float> m_Proportion;
+  // std::vector<itk::VariableLengthVector<MatrixValueType> > m_eigenValues;
+  // std::vector<MatrixType> m_Q;
+  // std::vector<MatrixType> m_lambdaQ;
+  // std::vector<MatrixValueType> m_cstDecision;
+  // MatrixValueType m_tau;
+
+  // storage.release();
   // if (name == "")
   //   m_NormalBayesModel->save(filename.c_str(), 0);
   // else

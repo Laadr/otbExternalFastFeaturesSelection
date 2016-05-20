@@ -46,6 +46,9 @@ public:
   itkNewMacro(Self);
   itkTypeMacro(GMMMachineLearningModel, MachineLearningModel);
 
+  /** Set m_tau and update m_lambdaQ and m_cstDecision */
+  void SetTau(MatrixValueType tau);
+
   /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
   void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, itk::VariableLengthVector<MatrixValueType> &eigenValues);
 
