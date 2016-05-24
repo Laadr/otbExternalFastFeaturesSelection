@@ -179,18 +179,6 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     m_cstDecision[i] += -2*log(m_Proportion[i]);
   }
 
-// std::cout << "Mean:\n" <<std::endl;
-// for (int i = 0; i < m_classNb; ++i)
-//   std::cout << m_Means[i] <<std::endl;
-
-// std::cout << "\nCov:\n" <<std::endl;
-// for (int i = 0; i < m_classNb; ++i)
-//   std::cout << m_Covariances[i] <<std::endl;
-
-// std::cout << "\nEigen:\n" <<std::endl;
-// for (int i = 0; i < m_classNb; ++i)
-//   std::cout << m_eigenValues[i] <<std::endl;
-
 }
 
 template <class TInputValue, class TOutputValue>
