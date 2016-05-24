@@ -39,7 +39,7 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
   m_tau = tau;
 
   // Precompute lambda^(-1/2) * Q and log(det lambda)
-  if (!m_Q.isempty())
+  if (! m_Q.empty())
   {
     MatrixValueType lambda;
     m_cstDecision.resize(m_classNb,0);
@@ -68,11 +68,9 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
   typedef itk::SymmetricEigenAnalysis< MatrixType, itk::VariableLengthVector<MatrixValueType>, MatrixType > SymmetricEigenAnalysisType;
   SymmetricEigenAnalysisType symmetricEigenAnalysis(inputMatrix.Cols());
 
-  symmetricEigenAnalysis.SetOrderEigenValues(false);
-
   symmetricEigenAnalysis.ComputeEigenValuesAndVectors(inputMatrix, eigenValues, outputMatrix);
 
-  if (m_tau != 0)
+  if (m_tau == 0)
   {
     for (int i = 0; i < eigenValues.GetSize(); ++i)
     {
@@ -118,6 +116,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // Create one subsample set for each class
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
   std::vector< typename ClassSampleType::Pointer > classSamples;
+  classSamples.reserve(m_classNb);
   for ( unsigned int i = 0; i < m_classNb; ++i )
   {
     classSamples.push_back( ClassSampleType::New() );
@@ -134,16 +133,20 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   // Estimate covariance matrices, mean vectors and proportions
+  m_NbSpl.resize(m_classNb);
+  m_Proportion.resize(m_classNb);
+  m_Covariances.resize(m_classNb,MatrixType(m_featNb,m_featNb));
+  m_Means.resize(m_classNb,MeanVectorType(m_featNb));
   for ( unsigned int i = 0; i < m_classNb; ++i )
   {
-    m_NbSpl.push_back(classSamples[i]->Size());
-    m_Proportion.push_back((float) m_NbSpl[i] / (float) sampleNb);
+    m_NbSpl[i] = classSamples[i]->Size();
+    m_Proportion[i] = (float) m_NbSpl[i] / (float) sampleNb;
 
     m_CovarianceEstimator->SetInput( classSamples[i] );
     m_CovarianceEstimator->Update();
 
-    m_Covariances.push_back(m_CovarianceEstimator->GetCovarianceMatrix());
-    m_Means.push_back(m_CovarianceEstimator->GetMean());
+    m_Covariances[i] = m_CovarianceEstimator->GetCovarianceMatrix();
+    m_Means[i] = m_CovarianceEstimator->GetMean();
   }
 
   // Decompose covariance matrix in eigenvalues/eigenvectors
@@ -176,6 +179,18 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     m_cstDecision[i] += -2*log(m_Proportion[i]);
   }
 
+// std::cout << "Mean:\n" <<std::endl;
+// for (int i = 0; i < m_classNb; ++i)
+//   std::cout << m_Means[i] <<std::endl;
+
+// std::cout << "\nCov:\n" <<std::endl;
+// for (int i = 0; i < m_classNb; ++i)
+//   std::cout << m_Covariances[i] <<std::endl;
+
+// std::cout << "\nEigen:\n" <<std::endl;
+// for (int i = 0; i < m_classNb; ++i)
+//   std::cout << m_eigenValues[i] <<std::endl;
+
 }
 
 template <class TInputValue, class TOutputValue>
@@ -197,7 +212,6 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // Compute decision function
   std::vector<MatrixValueType> decisionFct;
   decisionFct.resize(m_classNb);
-  // #pragma omp parallel for private(input_c)
   for (int i = 0; i < m_classNb; ++i)
   {
     for (int j = 0; j < m_featNb; ++j)
