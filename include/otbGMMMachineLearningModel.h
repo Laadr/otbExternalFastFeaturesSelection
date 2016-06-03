@@ -10,13 +10,13 @@
 #include "itkCovarianceSampleFilter.h"
 #include "itkSampleClassifierFilter.h"
 
-
 namespace otb
 {
 template <class TInputValue, class TTargetValue>
 class ITK_EXPORT GMMMachineLearningModel
   : public MachineLearningModel <TInputValue, TTargetValue>
 {
+
 public:
   /** Standard class typedefs. */
   typedef GMMMachineLearningModel                         Self;
@@ -31,9 +31,6 @@ public:
   typedef typename Superclass::TargetSampleType           TargetSampleType;
   typedef typename Superclass::TargetListSampleType       TargetListSampleType;
   typedef typename Superclass::ConfidenceValueType        ConfidenceValueType;
-
-  /** Type of the membership function. Gaussian density function */
-  typedef typename InputListSampleType::MeasurementVectorType MeasurementVectorType;
 
   /** Types of the mean and the covariance calculator that will update
    *  this component's distribution parameters */
@@ -72,6 +69,20 @@ public:
   /** Is the input model file writable and compatible with the corresponding classifier ? */
   virtual bool CanWriteFile(const std::string &);
   //@}
+
+  // itkSetObjectMacro(m_MapOfClasses, MapOfClasses, std::map<TargetValueType, int >);
+  // itkGetObjectMacro(m_MapOfClasses, MapOfClasses, std::map<TargetValueType, int >);
+  // itkSetObjectMacro(m_MapOfIndices, MapOfIndices, std::map<int, TargetValueType >);
+  // itkGetObjectMacro(m_MapOfIndices, MapOfIndices, std::map<int, TargetValueType >);
+  // itkSetObjectMacro(m_classNb, ClassNb, unsigned int);
+  // itkGetObjectMacro(m_classNb, ClassNb, unsigned int);
+  // itkSetObjectMacro(m_featNb, FeatNb, unsigned int);
+  // itkGetObjectMacro(m_featNb, FeatNb, unsigned int);
+
+  void AddMean(MeanVectorType vector);
+  void AddCovMatrix(MatrixType covMatrix);
+  void AddNbSpl(unsigned long n);
+  void UpdateProportion();
 
 protected:
   /** Constructor */
@@ -125,6 +136,10 @@ private:
 
   /** Regularisation constant */
   MatrixValueType m_tau;
+
+  /** Create one subsample set for each class */
+  typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
+  std::vector< typename ClassSampleType::Pointer > m_classSamples;
 
 };
 } // end namespace otb

@@ -1,15 +1,18 @@
 #ifndef __otbGMMMachineLearningModel_txx
 #define __otbGMMMachineLearningModel_txx
 
+#include <iostream>
 #include <fstream>
 #include <math.h>
 #include <limits>
 #include <vector>
 #include "itkMacro.h"
 #include "itkSubsample.h"
-#include "itkSymmetricEigenAnalysis.h"
 #include "otbGMMMachineLearningModel.h"
 #include "otbOpenCVUtils.h"
+#include <vnl/vnl_matrix.h>
+#include <vnl/algo/vnl_symmetric_eigensystem.h>
+#include <vnl/algo/vnl_generalized_eigensystem.h>
 
 namespace otb
 {
@@ -50,7 +53,7 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
       {
         lambda = 1 / sqrt(m_eigenValues[i][j] + m_tau);
         for (int k = 0; k < m_featNb; ++k)
-          m_lambdaQ[i](j,k) = lambda * m_Q[i](j,k);
+          m_lambdaQ[i](j,k) = lambda * m_Q[i](k,j);
 
         m_cstDecision[i] += log(m_eigenValues[i][j] + m_tau);
       }
@@ -65,10 +68,9 @@ template <class TInputValue, class TOutputValue>
 void GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, itk::VariableLengthVector<MatrixValueType> &eigenValues)
 {
-  typedef itk::SymmetricEigenAnalysis< MatrixType, itk::VariableLengthVector<MatrixValueType>, MatrixType > SymmetricEigenAnalysisType;
-  SymmetricEigenAnalysisType symmetricEigenAnalysis(inputMatrix.Cols());
+  vnl_vector<double> vectValP;
+  vnl_symmetric_eigensystem_compute( inputMatrix.GetVnlMatrix(), outputMatrix.GetVnlMatrix(), vectValP );
 
-  symmetricEigenAnalysis.ComputeEigenValuesAndVectors(inputMatrix, eigenValues, outputMatrix);
 
   if (m_tau == 0)
   {
@@ -76,8 +78,14 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
     {
       if (eigenValues[i] < std::numeric_limits<MatrixValueType>::epsilon())
         eigenValues[i] = std::numeric_limits<MatrixValueType>::epsilon();
+      else
+        eigenValues[i] = vectValP[i];
     }
+  }else{
+    for (int i = 0; i < eigenValues.GetSize(); ++i)
+      eigenValues[i] = vectValP[i];
   }
+
 }
 
 /** Train the machine learning model */
@@ -114,20 +122,18 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   // Create one subsample set for each class
-  typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
-  std::vector< typename ClassSampleType::Pointer > classSamples;
-  classSamples.reserve(m_classNb);
+  m_classSamples.reserve(m_classNb);
   for ( unsigned int i = 0; i < m_classNb; ++i )
   {
-    classSamples.push_back( ClassSampleType::New() );
-    classSamples[i]->SetSample( samples );
+    m_classSamples.push_back( ClassSampleType::New() );
+    m_classSamples[i]->SetSample( samples );
   }
   refIterator = labels->Begin();
   inputIterator = samples->Begin();
   while (inputIterator != samples->End())
   {
     TargetValueType currentLabel = refIterator.GetMeasurementVector()[0];
-    classSamples[m_MapOfClasses[currentLabel]]->AddInstance( inputIterator.GetInstanceIdentifier() );
+    m_classSamples[m_MapOfClasses[currentLabel]]->AddInstance( inputIterator.GetInstanceIdentifier() );
     ++inputIterator;
     ++refIterator;
   }
@@ -139,10 +145,10 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   m_Means.resize(m_classNb,MeanVectorType(m_featNb));
   for ( unsigned int i = 0; i < m_classNb; ++i )
   {
-    m_NbSpl[i] = classSamples[i]->Size();
+    m_NbSpl[i] = m_classSamples[i]->Size();
     m_Proportion[i] = (float) m_NbSpl[i] / (float) sampleNb;
 
-    m_CovarianceEstimator->SetInput( classSamples[i] );
+    m_CovarianceEstimator->SetInput( m_classSamples[i] );
     m_CovarianceEstimator->Update();
 
     m_Covariances[i] = m_CovarianceEstimator->GetCovarianceMatrix();
@@ -171,7 +177,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     {
       lambda = 1 / sqrt(m_eigenValues[i][j] + m_tau);
       for (int k = 0; k < m_featNb; ++k)
-        m_lambdaQ[i](j,k) = lambda * m_Q[i](j,k);
+        m_lambdaQ[i](j,k) = lambda * m_Q[i](k,j);
 
       m_cstDecision[i] += log(m_eigenValues[i][j] + m_tau);
     }
@@ -179,6 +185,8 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     m_cstDecision[i] += -2*log(m_Proportion[i]);
   }
 
+  for (int i = 0; i < m_classNb; ++i)
+    std::cout << m_NbSpl[i] << std::endl;
 }
 
 template <class TInputValue, class TOutputValue>
@@ -198,19 +206,17 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   itk::Array<MatrixValueType> input_c;
   input_c.SetSize(input.GetSize());
   // Compute decision function
-  std::vector<MatrixValueType> decisionFct;
-  decisionFct.resize(m_classNb);
+  std::vector<MatrixValueType> decisionFct(m_cstDecision);
+  itk::Array<MatrixValueType> lambdaQInputC;
   for (int i = 0; i < m_classNb; ++i)
   {
     for (int j = 0; j < m_featNb; ++j)
       input_c[j]= input[j] - m_Means[i][j];
 
-    itk::Array<MatrixValueType> lambdaQInputC = m_lambdaQ[i] * input_c;
-    MatrixValueType decisionValue = 0;
-    for (int j = 0; j < m_featNb; ++j)
-      decisionValue += lambdaQInputC[j]*lambdaQInputC[j];
+    lambdaQInputC = m_lambdaQ[i].GetVnlMatrix() * input_c;
 
-    decisionFct[i] = decisionValue + m_cstDecision[i];
+    for (int j = 0; j < m_featNb; ++j)
+      decisionFct[i] += lambdaQInputC[j]*lambdaQInputC[j];
   }
 
   int argmin = std::distance(decisionFct.begin(), std::min_element(decisionFct.begin(), decisionFct.end()));
@@ -227,31 +233,9 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Save(const std::string & filename, const std::string & name)
 {
 
-  // cv::FileStorage storage(filename, cv::FileStorage::WRITE);
-  // storage << "m_Means" << m_MapOfClasses;
-  // storage << "points_2d" << points2dmatrix;
-  // storage << "keypoints" << list_keypoints_;
-  // storage << "descriptors" << descriptors_;
+  // create and open a character archive for output
+  std::ofstream ofs(filename.c_str(), std::ios::binary);
 
-  // std::vector<MeanVectorType> m_Means;
-  // std::vector<MatrixType> m_Covariances;
-  // std::map<TargetValueType, int> m_MapOfClasses;
-  // std::map<int, TargetValueType> m_MapOfIndices;
-  // unsigned int m_classNb;
-  // unsigned int m_featNb;
-  // std::vector<unsigned long> m_NbSpl;
-  // std::vector<float> m_Proportion;
-  // std::vector<itk::VariableLengthVector<MatrixValueType> > m_eigenValues;
-  // std::vector<MatrixType> m_Q;
-  // std::vector<MatrixType> m_lambdaQ;
-  // std::vector<MatrixValueType> m_cstDecision;
-  // MatrixValueType m_tau;
-
-  // storage.release();
-  // if (name == "")
-  //   m_NormalBayesModel->save(filename.c_str(), 0);
-  // else
-  //   m_NormalBayesModel->save(filename.c_str(), name.c_str());
 }
 
 template <class TInputValue, class TOutputValue>
@@ -259,8 +243,9 @@ void
 GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Load(const std::string & filename, const std::string & name)
 {
-  // if (name == "")
-  // else
+
+  std::ifstream ifs(filename.c_str(), std::ios::binary);
+
 }
 
 template <class TInputValue, class TOutputValue>
@@ -308,6 +293,47 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // Call superclass implementation
   Superclass::PrintSelf(os,indent);
 }
+
+template <class TInputValue, class TOutputValue>
+void
+GMMMachineLearningModel<TInputValue,TOutputValue>
+::AddMean(MeanVectorType vector)
+{
+  m_Means.push_back(vector);
+}
+
+template <class TInputValue, class TOutputValue>
+void
+GMMMachineLearningModel<TInputValue,TOutputValue>
+::AddCovMatrix(MatrixType covMatrix)
+{
+  m_Covariances.push_back(covMatrix);
+}
+
+template <class TInputValue, class TOutputValue>
+void
+GMMMachineLearningModel<TInputValue,TOutputValue>
+::AddNbSpl(unsigned long n)
+{
+  m_NbSpl.push_back(n);
+}
+
+template <class TInputValue, class TOutputValue>
+void
+GMMMachineLearningModel<TInputValue,TOutputValue>
+::UpdateProportion()
+{
+  unsigned totalNb = 0;
+  for (int i = 0; i < m_classNb; ++i)
+    totalNb += m_NbSpl[i];
+
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    m_Proportion[i] = (float) m_NbSpl[i] / (float) totalNb;
+  }
+
+}
+
 
 } //end namespace otb
 
