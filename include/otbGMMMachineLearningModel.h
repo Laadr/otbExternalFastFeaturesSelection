@@ -131,13 +131,13 @@ private:
   /** Vector of size C of matrix (dxd) eigenvalues^(-1/2) * Q.T for each class */
   std::vector<MatrixType> m_lambdaQ;
 
-  /** Vector of size C of scalar logdet cov - 2*log proportion for each class */
+  /** Vector of size C of scalar (logdet cov - 2*log proportion) for each class */
   std::vector<MatrixValueType> m_cstDecision;
 
   /** Regularisation constant */
   MatrixValueType m_tau;
 
-  /** Create one subsample set for each class */
+  /** Create one subset of samples for each class */
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
   std::vector< typename ClassSampleType::Pointer > m_classSamples;
 

@@ -51,17 +51,24 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
   if ( criterion.compare("accuracy") == 0 || criterion.compare("kappa") == 0 || criterion.compare("F1mean") == 0)
   {
     std::vector<GMMSelectionMachineLearningModel<TInputValue, TTargetValue> > submodelCv(nfold);
+    typename CovarianceEstimatorType::Pointer covarianceEstimator = CovarianceEstimatorType::New();
+    MeanVectorType meanFold;
+    MatrixType covarianceFold;
 
     for (unsigned int i = 0; i < m_classNb; ++i)
     {
       std::srand ( unsigned ( std::time(0) ) );
       std::vector<InstanceIdentifier> indices;
-      for (unsigned j=0; j<m_NbSpl[i]; ++j) indices.push_back(m_classSamples[i]->GetInstanceIdentifier(j));
+      for (unsigned j=0; j<m_NbSpl[i]; ++j)
+        indices.push_back(m_classSamples[i]->GetInstanceIdentifier(j));
 
       std::random_shuffle ( indices.begin(), indices.end() );
 
+      unsigned nbSplFold = m_NbSpl[i]/nfold; // to verify
+
       for (int j = 0; j < nfold; ++j)
       {
+        // Add
         submodelCv[j].AddInstanceToFold(indices,j*m_NbSpl[i]/nfold,(j+1)*m_NbSpl[i]/nfold);
 
         // Update model for each fold
@@ -70,31 +77,20 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
         submodelCv[j].SetClassNb(m_classNb);
         submodelCv[j].SetFeatNb(m_featNb);
 
-        submodelCv[j].AddNbSpl(m_NbSpl[i]/nfold);
-        
-        submodelCv[j].AddMean(MeanVectorType vector);
-        submodelCv[j].AddCovMatrix(MatrixType covMatrix);
+        covarianceEstimator->SetInput( /* list sample input*/ );
+        covarianceEstimator->Update();
 
+        covarianceFold = covarianceEstimator->GetCovarianceMatrix();
+        meanFold       = covarianceEstimator->GetMean();
+
+
+
+        submodelCv[j].AddNbSpl(nbSplFold);
+        submodelCv[j].AddMean( (1/(m_NbSpl[i] - nbSplFold)) * (m_NbSpl[i] * m_Means[i] - nbSplFold * meanFold) );
+        submodelCv[j].AddCovMatrix( (1/(m_NbSpl[i]-nbSplFold-1)) * ( (m_NbSpl[i]-1)*m_Covariances[i] - (nbSplFold-1)*covarianceFold - m_NbSpl[i]*nbSplFold/(m_NbSpl[i]-nbSplFold) * (m_Means[i]-meanFold) * (m_Means[i]-meanFold) ) );
+        submodelCv[j].UpdateProportion();
       }
 
-
-
-
-// # Update the model for each class
-// for c in xrange(self.C):
-//     classInd = sp.where(testLabels==(c+1))[0]
-//     nk_c     = float(classInd.size)
-//     mean_k   = sp.mean(testSamples[classInd,:],axis=0)
-//     cov_k    = sp.cov(testSamples[classInd,:],rowvar=0)
-
-//     model_pre_cv[k].nbSpl[c]  = self.nbSpl[c] - nk_c
-//     model_pre_cv[k].mean[c,:] = (self.nbSpl[c]*self.mean[c,:]-nk_c*mean_k)/(self.nbSpl[c]-nk_c)
-//     model_pre_cv[k].cov[c,:]  = ((self.nbSpl[c]-1)*self.cov[c,:,:] - (nk_c-1)*cov_k - nk_c*self.nbSpl[c]/model_pre_cv[k].nbSpl[c]*sp.outer(self.mean[c,:]-mean_k,self.mean[c,:]-mean_k))/(model_pre_cv[k].nbSpl[c]-1)
-
-//     del classInd,nk_c,mean_k,cov_k
-
-// # Update proportion
-// model_pre_cv[k].prop = model_pre_cv[k].nbSpl/(n-nk)
 
 // # Precompute cst
 // model_pre_cv[k].logprop = 2*sp.log(model_pre_cv[k].prop)
