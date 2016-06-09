@@ -34,10 +34,10 @@ public:
 
   /** Types of the mean and the covariance calculator that will update
    *  this component's distribution parameters */
-  typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
-  typedef typename CovarianceEstimatorType::MatrixType MatrixType;
-  typedef typename MatrixType::ValueType MatrixValueType;
-  typedef typename CovarianceEstimatorType::MeasurementVectorRealType MeanVectorType;
+  typedef vnl_matrix<double> MatrixType;
+  typedef typename MatrixType::element_type MatrixValueType;
+  typedef vnl_vector<double> VectorType;
+  typedef typename VectorType::element_type VectorValueType;
 
   /** Run-time type information (and related methods). */
   itkNewMacro(Self);
@@ -47,7 +47,7 @@ public:
   void SetTau(MatrixValueType tau);
 
   /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
-  void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, itk::VariableLengthVector<MatrixValueType> &eigenValues);
+  void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, VectorType &eigenValues);
 
   /** Train the machine learning model */
   virtual void Train();
@@ -70,16 +70,16 @@ public:
   virtual bool CanWriteFile(const std::string &);
   //@}
 
-  // itkSetObjectMacro(m_MapOfClasses, MapOfClasses, std::map<TargetValueType, int >);
-  // itkGetObjectMacro(m_MapOfClasses, MapOfClasses, std::map<TargetValueType, int >);
-  // itkSetObjectMacro(m_MapOfIndices, MapOfIndices, std::map<int, TargetValueType >);
-  // itkGetObjectMacro(m_MapOfIndices, MapOfIndices, std::map<int, TargetValueType >);
-  // itkSetObjectMacro(m_classNb, ClassNb, unsigned int);
-  // itkGetObjectMacro(m_classNb, ClassNb, unsigned int);
-  // itkSetObjectMacro(m_featNb, FeatNb, unsigned int);
-  // itkGetObjectMacro(m_featNb, FeatNb, unsigned int);
+  // itkSetMacro(m_MapOfClasses, std::map<TargetValueType, int >);
+  // itkGetMacro(m_MapOfClasses, std::map<TargetValueType, int >);
+  // itkSetMacro(m_MapOfIndices, std::map<int, TargetValueType >);
+  // itkGetMacro(m_MapOfIndices, std::map<int, TargetValueType >);
+  // itkSetMacro(m_classNb, unsigned int);
+  // itkGetMacro(m_classNb, unsigned int);
+  // itkSetMacro(m_featNb, unsigned int);
+  // itkGetMacro(m_featNb, unsigned int);
 
-  void AddMean(MeanVectorType vector);
+  void AddMean(VectorType vector);
   void AddCovMatrix(MatrixType covMatrix);
   void AddNbSpl(unsigned long n);
   void UpdateProportion();
@@ -98,10 +98,8 @@ private:
   GMMMachineLearningModel(const Self &); //purposely not implemented
   void operator =(const Self&); //purposely not implemented
 
-  typename CovarianceEstimatorType::Pointer m_CovarianceEstimator;
-
   /** Matrix (Cxd) containing the mean vector of each class */
-  std::vector<MeanVectorType> m_Means;
+  std::vector<VectorType> m_Means;
 
   /** Vector of covariance matrix (dxd) of each class */
   std::vector<MatrixType> m_Covariances;
@@ -123,7 +121,7 @@ private:
   std::vector<float> m_Proportion;
 
   /** Vector of size C containing eigenvalues of the covariance matrices */
-  std::vector<itk::VariableLengthVector<MatrixValueType> > m_eigenValues;
+  std::vector<VectorType> m_eigenValues;
 
   /** Vector of size C of eigenvectors matrix (dxd) of each class (each line is an eigenvector) */
   std::vector<MatrixType> m_Q;

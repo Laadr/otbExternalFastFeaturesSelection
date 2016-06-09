@@ -10,7 +10,9 @@
 #include "itkSubsample.h"
 #include "otbGMMMachineLearningModel.h"
 #include "otbOpenCVUtils.h"
+#include <vnl/vnl_copy.h>
 #include <vnl/vnl_matrix.h>
+#include <vnl/vnl_vector.h>
 #include <vnl/algo/vnl_symmetric_eigensystem.h>
 #include <vnl/algo/vnl_generalized_eigensystem.h>
 
@@ -24,7 +26,6 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   m_featNb(0),
   m_tau(0)
 {
-  m_CovarianceEstimator = CovarianceEstimatorType::New();
 }
 
 
@@ -42,11 +43,12 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
   m_tau = tau;
 
   // Precompute lambda^(-1/2) * Q and log(det lambda)
-  if (! m_Q.empty())
+  if (!m_Q.empty())
   {
     MatrixValueType lambda;
     m_cstDecision.resize(m_classNb,0);
     m_lambdaQ.resize(m_classNb, MatrixType(m_featNb,m_featNb));
+
     for (int i = 0; i < m_classNb; ++i)
     {
       for (int j = 0; j < m_featNb; ++j)
@@ -66,26 +68,15 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
 /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
 template <class TInputValue, class TOutputValue>
 void GMMMachineLearningModel<TInputValue,TOutputValue>
-::Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, itk::VariableLengthVector<MatrixValueType> &eigenValues)
+::Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, VectorType &eigenValues)
 {
-  vnl_vector<double> vectValP;
-  vnl_symmetric_eigensystem_compute( inputMatrix.GetVnlMatrix(), outputMatrix.GetVnlMatrix(), vectValP );
+  vnl_symmetric_eigensystem_compute( inputMatrix, outputMatrix, eigenValues );
 
-
-  if (m_tau == 0)
+  for (int i = 0; i < eigenValues.size(); ++i)
   {
-    for (int i = 0; i < eigenValues.GetSize(); ++i)
-    {
-      if (eigenValues[i] < std::numeric_limits<MatrixValueType>::epsilon())
-        eigenValues[i] = std::numeric_limits<MatrixValueType>::epsilon();
-      else
-        eigenValues[i] = vectValP[i];
-    }
-  }else{
-    for (int i = 0; i < eigenValues.GetSize(); ++i)
-      eigenValues[i] = vectValP[i];
+    if (eigenValues[i] < std::numeric_limits<MatrixValueType>::epsilon())
+      eigenValues[i] = std::numeric_limits<MatrixValueType>::epsilon();
   }
-
 }
 
 /** Train the machine learning model */
@@ -99,23 +90,24 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   typename TargetListSampleType::Pointer labels = this->GetTargetListSample();
 
   // Declare iterator for samples and labels
-  typename TargetListSampleType::ConstIterator refIterator = labels->Begin();
+  typename TargetListSampleType::ConstIterator refIterator  = labels->Begin();
   typename InputListSampleType::ConstIterator inputIterator = samples->Begin();
 
   // Get number of samples
-  unsigned long sampleNb = samples->Size();
+  unsigned long sampleNb = labels->Size();
 
   // Get number of features
   m_featNb = samples->GetMeasurementVectorSize();
 
   // Get number of classes and map indice with label
+  TargetValueType currentLabel;
   while (refIterator != labels->End())
   {
-    TargetValueType currentLabel = refIterator.GetMeasurementVector()[0];
+    currentLabel = refIterator.GetMeasurementVector()[0];
     if (m_MapOfClasses.find(currentLabel) == m_MapOfClasses.end())
     {
       m_MapOfClasses[currentLabel] = m_classNb;
-      m_MapOfIndices[m_classNb] = currentLabel;
+      m_MapOfIndices[m_classNb]    = currentLabel;
       ++m_classNb;
     }
     ++refIterator;
@@ -128,8 +120,8 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     m_classSamples.push_back( ClassSampleType::New() );
     m_classSamples[i]->SetSample( samples );
   }
-  refIterator = labels->Begin();
   inputIterator = samples->Begin();
+  refIterator   = labels->Begin();
   while (inputIterator != samples->End())
   {
     TargetValueType currentLabel = refIterator.GetMeasurementVector()[0];
@@ -139,27 +131,28 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   // Estimate covariance matrices, mean vectors and proportions
+  typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
+  typename CovarianceEstimatorType::Pointer covarianceEstimator = CovarianceEstimatorType::New();
+
   m_NbSpl.resize(m_classNb);
   m_Proportion.resize(m_classNb);
   m_Covariances.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-  m_Means.resize(m_classNb,MeanVectorType(m_featNb));
+  m_Means.resize(m_classNb,VectorType(m_featNb));
   for ( unsigned int i = 0; i < m_classNb; ++i )
   {
     m_NbSpl[i] = m_classSamples[i]->Size();
     m_Proportion[i] = (float) m_NbSpl[i] / (float) sampleNb;
 
-    m_CovarianceEstimator->SetInput( m_classSamples[i] );
-    m_CovarianceEstimator->Update();
+    covarianceEstimator->SetInput( m_classSamples[i] );
+    covarianceEstimator->Update();
 
-    m_Covariances[i] = m_CovarianceEstimator->GetCovarianceMatrix();
-    m_Means[i] = m_CovarianceEstimator->GetMean();
+    m_Covariances[i] = covarianceEstimator->GetCovarianceMatrix().GetVnlMatrix();
+    m_Means[i] = VectorType(covarianceEstimator->GetMean().GetDataPointer(),m_featNb);
   }
 
   // Decompose covariance matrix in eigenvalues/eigenvectors
   m_Q.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-  itk::VariableLengthVector<MatrixValueType> newVector;
-  newVector.SetSize(m_featNb);
-  m_eigenValues.resize(m_classNb,newVector);
+  m_eigenValues.resize(m_classNb,VectorType(m_featNb));
 
   for (int i = 0; i < m_classNb; ++i)
   {
@@ -176,8 +169,10 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     for (int j = 0; j < m_featNb; ++j)
     {
       lambda = 1 / sqrt(m_eigenValues[i][j] + m_tau);
-      for (int k = 0; k < m_featNb; ++k)
-        m_lambdaQ[i](j,k) = lambda * m_Q[i](k,j);
+      // for (int k = 0; k < m_featNb; ++k)
+      //   m_lambdaQ[i](j,k) = lambda * m_Q[i](k,j);
+      // Transposition and row multiplication at the same time
+      m_lambdaQ[i].set_row(j,lambda*m_Q[i].get_column(j));
 
       m_cstDecision[i] += log(m_eigenValues[i][j] + m_tau);
     }
@@ -185,8 +180,8 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     m_cstDecision[i] += -2*log(m_Proportion[i]);
   }
 
-  for (int i = 0; i < m_classNb; ++i)
-    std::cout << m_NbSpl[i] << std::endl;
+  // for (int i = 0; i < m_classNb; ++i)
+  //   std::cout << m_NbSpl[i] << std::endl;
 }
 
 template <class TInputValue, class TOutputValue>
@@ -203,20 +198,22 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     }
   }
 
-  itk::Array<MatrixValueType> input_c;
-  input_c.SetSize(input.GetSize());
+  VectorType input_c(m_featNb);
+  // input_c.SetSize(input.GetSize());
   // Compute decision function
   std::vector<MatrixValueType> decisionFct(m_cstDecision);
-  itk::Array<MatrixValueType> lambdaQInputC;
+  VectorType lambdaQInputC;
   for (int i = 0; i < m_classNb; ++i)
   {
-    for (int j = 0; j < m_featNb; ++j)
-      input_c[j]= input[j] - m_Means[i][j];
+    // for (int j = 0; j < m_featNb; ++j)
+    //   input_c[j]= input[j] - m_Means[i][j];
+    vnl_copy(vnl_vector<InputValueType>(input.GetDataPointer(), m_featNb),input_c);
+    input_c -= m_Means[i];
 
-    lambdaQInputC = m_lambdaQ[i].GetVnlMatrix() * input_c;
+    lambdaQInputC = m_lambdaQ[i] * input_c;
 
-    for (int j = 0; j < m_featNb; ++j)
-      decisionFct[i] += lambdaQInputC[j]*lambdaQInputC[j];
+    // Add sum of squared elements
+    decisionFct[i] += lambdaQInputC.squared_magnitude();
   }
 
   int argmin = std::distance(decisionFct.begin(), std::min_element(decisionFct.begin(), decisionFct.end()));
@@ -297,7 +294,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 template <class TInputValue, class TOutputValue>
 void
 GMMMachineLearningModel<TInputValue,TOutputValue>
-::AddMean(MeanVectorType vector)
+::AddMean(VectorType vector)
 {
   m_Means.push_back(vector);
 }
