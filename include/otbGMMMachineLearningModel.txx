@@ -10,11 +10,11 @@
 #include "itkSubsample.h"
 #include "otbGMMMachineLearningModel.h"
 #include "otbOpenCVUtils.h"
-#include <vnl/vnl_copy.h>
-#include <vnl/vnl_matrix.h>
-#include <vnl/vnl_vector.h>
-#include <vnl/algo/vnl_symmetric_eigensystem.h>
-#include <vnl/algo/vnl_generalized_eigensystem.h>
+#include "vnl/vnl_copy.h"
+#include "vnl/vnl_matrix.h"
+#include "vnl/vnl_vector.h"
+#include "vnl/algo/vnl_symmetric_eigensystem.h"
+#include "vnl/algo/vnl_generalized_eigensystem.h"
 
 namespace otb
 {
@@ -124,7 +124,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   refIterator   = labels->Begin();
   while (inputIterator != samples->End())
   {
-    TargetValueType currentLabel = refIterator.GetMeasurementVector()[0];
+    currentLabel = refIterator.GetMeasurementVector()[0];
     m_classSamples[m_MapOfClasses[currentLabel]]->AddInstance( inputIterator.GetInstanceIdentifier() );
     ++inputIterator;
     ++refIterator;
@@ -179,9 +179,6 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 
     m_cstDecision[i] += -2*log(m_Proportion[i]);
   }
-
-  // for (int i = 0; i < m_classNb; ++i)
-  //   std::cout << m_NbSpl[i] << std::endl;
 }
 
 template <class TInputValue, class TOutputValue>
@@ -199,17 +196,13 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   VectorType input_c(m_featNb);
-  // input_c.SetSize(input.GetSize());
   // Compute decision function
   std::vector<MatrixValueType> decisionFct(m_cstDecision);
   VectorType lambdaQInputC;
   for (int i = 0; i < m_classNb; ++i)
   {
-    // for (int j = 0; j < m_featNb; ++j)
-    //   input_c[j]= input[j] - m_Means[i][j];
     vnl_copy(vnl_vector<InputValueType>(input.GetDataPointer(), m_featNb),input_c);
     input_c -= m_Means[i];
-
     lambdaQInputC = m_lambdaQ[i] * input_c;
 
     // Add sum of squared elements
@@ -229,10 +222,84 @@ void
 GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Save(const std::string & filename, const std::string & name)
 {
-
   // create and open a character archive for output
-  std::ofstream ofs(filename.c_str(), std::ios::binary);
+  std::ofstream ofs(filename.c_str(), std::ios::out);
 
+  // Store single value data
+  ofs << m_classNb << std::endl;
+  ofs << m_featNb << std::endl;
+  ofs << m_tau << std::endl;
+
+  // Store label mapping (only one way)
+  typedef typename std::map<TargetValueType, int>::const_iterator MapIterator;
+  for (MapIterator classMapIter = m_MapOfClasses.begin(); classMapIter != m_MapOfClasses.end(); classMapIter++)
+    ofs << classMapIter->first << " " << classMapIter->second << " ";
+  ofs << std::endl;
+
+  // Store vector of nb of samples
+  for (int i = 0; i < m_classNb; ++i)
+    ofs << m_NbSpl[i] << " ";
+  ofs << std::endl;
+
+  // Set writing precision (need c++11 to not hardcode value of double precision)
+  // ofs.precision(std::numeric_limits<double>::max_digits10);
+  ofs.precision(17);
+
+  // Store vector of mean vector (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    for (int j = 0; j < m_featNb; ++j)
+      ofs << m_Means[i][j] << " ";
+
+    ofs << std::endl;
+  }
+
+  // Store vector of covariance matrices (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    for (int j = 0; j < m_featNb; ++j)
+    {
+      for (int k = 0; k < m_featNb; ++k)
+        ofs << m_Covariances[i](j,k) << " ";
+    }
+    ofs << std::endl;
+  }
+
+  // Store vector of eigenvalues vector (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    for (int j = 0; j < m_featNb; ++j)
+      ofs << m_eigenValues[i][j] << " ";
+
+    ofs << std::endl;
+  }
+
+  // Store vector of eigenvectors matrices (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    for (int j = 0; j < m_featNb; ++j)
+    {
+      for (int k = 0; k < m_featNb; ++k)
+        ofs << m_Q[i](j,k) << " ";
+    }
+    ofs << std::endl;
+  }
+
+  // Store vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    for (int j = 0; j < m_featNb; ++j)
+    {
+      for (int k = 0; k < m_featNb; ++k)
+        ofs << m_lambdaQ[i](j,k) << " ";
+    }
+    ofs << std::endl;
+  }
+
+  // Store vector of scalar (logdet cov - 2*log proportion)
+  for (int i = 0; i < m_classNb; ++i)
+    ofs << m_cstDecision[i] << " ";
+  ofs << std::endl;
 }
 
 template <class TInputValue, class TOutputValue>

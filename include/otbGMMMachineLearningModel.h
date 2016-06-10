@@ -98,15 +98,6 @@ private:
   GMMMachineLearningModel(const Self &); //purposely not implemented
   void operator =(const Self&); //purposely not implemented
 
-  /** Matrix (Cxd) containing the mean vector of each class */
-  std::vector<VectorType> m_Means;
-
-  /** Vector of covariance matrix (dxd) of each class */
-  std::vector<MatrixType> m_Covariances;
-
-  /** Map of classes */
-  std::map<TargetValueType, int> m_MapOfClasses;
-  std::map<int, TargetValueType> m_MapOfIndices;
 
   /** Number of class */
   unsigned int m_classNb;
@@ -114,11 +105,24 @@ private:
   /** Number of features */
   unsigned int m_featNb;
 
+  /** Regularisation constant */
+  MatrixValueType m_tau;
+
+  /** Map of classes */
+  std::map<TargetValueType, int> m_MapOfClasses;
+  std::map<int, TargetValueType> m_MapOfIndices;
+
   /** Vector containing the number of samples in each class */
   std::vector<unsigned long> m_NbSpl;
 
   /** Vector containing the proportion of samples in each class */
-  std::vector<float> m_Proportion;
+  std::vector<double> m_Proportion;
+
+  /** Matrix (Cxd) containing the mean vector of each class */
+  std::vector<VectorType> m_Means;
+
+  /** Vector of covariance matrix (dxd) of each class */
+  std::vector<MatrixType> m_Covariances;
 
   /** Vector of size C containing eigenvalues of the covariance matrices */
   std::vector<VectorType> m_eigenValues;
@@ -131,9 +135,6 @@ private:
 
   /** Vector of size C of scalar (logdet cov - 2*log proportion) for each class */
   std::vector<MatrixValueType> m_cstDecision;
-
-  /** Regularisation constant */
-  MatrixValueType m_tau;
 
   /** Create one subset of samples for each class */
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
