@@ -34,17 +34,16 @@ public:
 
   /** Types of the mean and the covariance calculator that will update
    *  this component's distribution parameters */
-  typedef vnl_matrix<double> MatrixType;
-  typedef typename MatrixType::element_type MatrixValueType;
-  typedef vnl_vector<double> VectorType;
-  typedef typename VectorType::element_type VectorValueType;
+  typedef double RealType;
+  typedef vnl_matrix<RealType> MatrixType;
+  typedef vnl_vector<RealType> VectorType;
 
   /** Run-time type information (and related methods). */
   itkNewMacro(Self);
   itkTypeMacro(GMMMachineLearningModel, MachineLearningModel);
 
   /** Set m_tau and update m_lambdaQ and m_cstDecision */
-  void SetTau(MatrixValueType tau);
+  void SetTau(RealType tau);
 
   /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
   void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, VectorType &eigenValues);
@@ -106,7 +105,7 @@ private:
   unsigned int m_featNb;
 
   /** Regularisation constant */
-  MatrixValueType m_tau;
+  RealType m_tau;
 
   /** Map of classes */
   std::map<TargetValueType, int> m_MapOfClasses;
@@ -134,7 +133,7 @@ private:
   std::vector<MatrixType> m_lambdaQ;
 
   /** Vector of size C of scalar (logdet cov - 2*log proportion) for each class */
-  std::vector<MatrixValueType> m_cstDecision;
+  std::vector<RealType> m_cstDecision;
 
   /** Create one subset of samples for each class */
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;

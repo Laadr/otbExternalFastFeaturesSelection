@@ -38,14 +38,14 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 /** Set m_tau and update m_lambdaQ and m_cstDecision */
 template <class TInputValue, class TOutputValue>
 void GMMMachineLearningModel<TInputValue,TOutputValue>
-::SetTau(MatrixValueType tau)
+::SetTau(RealType tau)
 {
   m_tau = tau;
 
   // Precompute lambda^(-1/2) * Q and log(det lambda)
   if (!m_Q.empty())
   {
-    MatrixValueType lambda;
+    RealType lambda;
     m_cstDecision.resize(m_classNb,0);
     m_lambdaQ.resize(m_classNb, MatrixType(m_featNb,m_featNb));
 
@@ -74,8 +74,8 @@ void GMMMachineLearningModel<TInputValue,TOutputValue>
 
   for (int i = 0; i < eigenValues.size(); ++i)
   {
-    if (eigenValues[i] < std::numeric_limits<MatrixValueType>::epsilon())
-      eigenValues[i] = std::numeric_limits<MatrixValueType>::epsilon();
+    if (eigenValues[i] < std::numeric_limits<RealType>::epsilon())
+      eigenValues[i] = std::numeric_limits<RealType>::epsilon();
   }
 }
 
@@ -161,7 +161,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   // Precompute lambda^(-1/2) * Q and log(det lambda)
-  MatrixValueType lambda;
+  RealType lambda;
   m_cstDecision.resize(m_classNb,0);
   m_lambdaQ.resize(m_classNb, MatrixType(m_featNb,m_featNb));
   for (int i = 0; i < m_classNb; ++i)
@@ -197,7 +197,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 
   VectorType input_c(m_featNb);
   // Compute decision function
-  std::vector<MatrixValueType> decisionFct(m_cstDecision);
+  std::vector<RealType> decisionFct(m_cstDecision);
   VectorType lambdaQInputC;
   for (int i = 0; i < m_classNb; ++i)
   {
