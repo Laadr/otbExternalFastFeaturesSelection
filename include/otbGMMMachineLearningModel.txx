@@ -245,6 +245,11 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // ofs.precision(std::numeric_limits<double>::max_digits10);
   ofs.precision(17);
 
+  // Store vector of proportion of samples
+  for (int i = 0; i < m_classNb; ++i)
+    ofs << m_Proportion[i] << " ";
+  ofs << std::endl;
+
   // Store vector of mean vector (one by line)
   for (int i = 0; i < m_classNb; ++i)
   {
@@ -307,9 +312,76 @@ void
 GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Load(const std::string & filename, const std::string & name)
 {
+  std::ifstream ifs(filename.c_str(), std::ios::in);
 
-  std::ifstream ifs(filename.c_str(), std::ios::binary);
+  std::string test;
+  // ifs >> test;
 
+  // Load single value data
+  ifs >> m_classNb;
+  ifs >> m_featNb;
+  ifs >> m_tau;
+
+  // Allocation
+  m_NbSpl.resize(m_classNb);
+  m_Proportion.resize(m_classNb);
+  m_Means.resize(m_classNb,VectorType(m_featNb));
+  m_Covariances.resize(m_classNb,MatrixType(m_featNb,m_featNb));
+  m_eigenValues.resize(m_classNb,VectorType(m_featNb));
+  m_Q.resize(m_classNb,MatrixType(m_featNb,m_featNb));
+  m_lambdaQ.resize(m_classNb,MatrixType(m_featNb,m_featNb));
+  m_cstDecision.resize(m_classNb);
+
+  // Load label mapping (only one way)
+  TargetValueType lab;
+  int idLab;
+  for (int i = 0; i < m_classNb; ++i)
+  {
+    ifs >> lab;
+    ifs >> idLab;
+    m_MapOfClasses[lab]   = idLab;
+    m_MapOfIndices[idLab] = lab;
+  }
+
+  // Load vector of nb of samples
+  for (int i = 0; i < m_classNb; ++i)
+    ifs >> m_NbSpl[i];
+
+  // Load vector of proportion of samples
+  for (int i = 0; i < m_classNb; ++i)
+    ifs >> m_Proportion[i];
+
+  // Load vector of mean vector (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+    for (int j = 0; j < m_featNb; ++j)
+      ifs >> m_Means[i][j];
+
+  // Load vector of covariance matrices (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+    for (int j = 0; j < m_featNb; ++j)
+      for (int k = 0; k < m_featNb; ++k)
+        ifs >> m_Covariances[i](j,k);
+
+  // Load vector of eigenvalues vector (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+    for (int j = 0; j < m_featNb; ++j)
+      ifs >> m_eigenValues[i][j];
+
+  // Load vector of eigenvectors matrices (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+    for (int j = 0; j < m_featNb; ++j)
+      for (int k = 0; k < m_featNb; ++k)
+        ifs >> m_Q[i](j,k);
+
+  // Load vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
+  for (int i = 0; i < m_classNb; ++i)
+    for (int j = 0; j < m_featNb; ++j)
+      for (int k = 0; k < m_featNb; ++k)
+        ifs >> m_lambdaQ[i](j,k);
+
+  // Load vector of scalar (logdet cov - 2*log proportion)
+  for (int i = 0; i < m_classNb; ++i)
+    ifs >> m_cstDecision[i];
 }
 
 template <class TInputValue, class TOutputValue>
