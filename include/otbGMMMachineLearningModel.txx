@@ -22,9 +22,9 @@ namespace otb
 template <class TInputValue, class TOutputValue>
 GMMMachineLearningModel<TInputValue,TOutputValue>
 ::GMMMachineLearningModel():
-  m_classNb(0),
-  m_featNb(0),
-  m_tau(0)
+  m_ClassNb(0),
+  m_FeatNb(0),
+  m_Tau(0)
 {
 }
 
@@ -35,32 +35,32 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 {
 }
 
-/** Set m_tau and update m_lambdaQ and m_cstDecision */
+/** Set m_Tau and update m_LambdaQ and m_CstDecision */
 template <class TInputValue, class TOutputValue>
 void GMMMachineLearningModel<TInputValue,TOutputValue>
 ::SetTau(RealType tau)
 {
-  m_tau = tau;
+  m_Tau = tau;
 
   // Precompute lambda^(-1/2) * Q and log(det lambda)
   if (!m_Q.empty())
   {
     RealType lambda;
-    m_cstDecision.resize(m_classNb,0);
-    m_lambdaQ.resize(m_classNb, MatrixType(m_featNb,m_featNb));
+    m_CstDecision.resize(m_ClassNb,0);
+    m_LambdaQ.resize(m_ClassNb, MatrixType(m_FeatNb,m_FeatNb));
 
-    for (int i = 0; i < m_classNb; ++i)
+    for (int i = 0; i < m_ClassNb; ++i)
     {
-      for (int j = 0; j < m_featNb; ++j)
+      for (int j = 0; j < m_FeatNb; ++j)
       {
-        lambda = 1 / sqrt(m_eigenValues[i][j] + m_tau);
-        for (int k = 0; k < m_featNb; ++k)
-          m_lambdaQ[i](j,k) = lambda * m_Q[i](k,j);
+        lambda = 1 / sqrt(m_EigenValues[i][j] + m_Tau);
+        for (int k = 0; k < m_FeatNb; ++k)
+          m_LambdaQ[i](j,k) = lambda * m_Q[i](k,j);
 
-        m_cstDecision[i] += log(m_eigenValues[i][j] + m_tau);
+        m_CstDecision[i] += log(m_EigenValues[i][j] + m_Tau);
       }
 
-      m_cstDecision[i] += -2*log(m_Proportion[i]);
+      m_CstDecision[i] += -2*log(m_Proportion[i]);
     }
   }
 }
@@ -97,7 +97,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   unsigned long sampleNb = labels->Size();
 
   // Get number of features
-  m_featNb = samples->GetMeasurementVectorSize();
+  m_FeatNb = samples->GetMeasurementVectorSize();
 
   // Get number of classes and map indice with label
   TargetValueType currentLabel;
@@ -106,78 +106,71 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     currentLabel = refIterator.GetMeasurementVector()[0];
     if (m_MapOfClasses.find(currentLabel) == m_MapOfClasses.end())
     {
-      m_MapOfClasses[currentLabel] = m_classNb;
-      m_MapOfIndices[m_classNb]    = currentLabel;
-      ++m_classNb;
+      m_MapOfClasses[currentLabel] = m_ClassNb;
+      m_MapOfIndices[m_ClassNb]    = currentLabel;
+      ++m_ClassNb;
     }
     ++refIterator;
   }
 
   // Create one subsample set for each class
-  m_classSamples.reserve(m_classNb);
-  for ( unsigned int i = 0; i < m_classNb; ++i )
+  m_ClassSamples.reserve(m_ClassNb);
+  for ( unsigned int i = 0; i < m_ClassNb; ++i )
   {
-    m_classSamples.push_back( ClassSampleType::New() );
-    m_classSamples[i]->SetSample( samples );
+    m_ClassSamples.push_back( ClassSampleType::New() );
+    m_ClassSamples[i]->SetSample( samples );
   }
   inputIterator = samples->Begin();
   refIterator   = labels->Begin();
   while (inputIterator != samples->End())
   {
     currentLabel = refIterator.GetMeasurementVector()[0];
-    m_classSamples[m_MapOfClasses[currentLabel]]->AddInstance( inputIterator.GetInstanceIdentifier() );
+    m_ClassSamples[m_MapOfClasses[currentLabel]]->AddInstance( inputIterator.GetInstanceIdentifier() );
     ++inputIterator;
     ++refIterator;
   }
 
-  // Estimate covariance matrices, mean vectors and proportions
+  // Allocate all members
+  m_NbSpl.resize(m_ClassNb);
+  m_Proportion.resize(m_ClassNb);
+  m_Covariances.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
+  m_Means.resize(m_ClassNb,VectorType(m_FeatNb));
+
+  m_Q.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
+  m_EigenValues.resize(m_ClassNb,VectorType(m_FeatNb));
+
+  m_CstDecision.resize(m_ClassNb,0);
+  m_LambdaQ.resize(m_ClassNb, MatrixType(m_FeatNb,m_FeatNb));
+
+  RealType lambda;
   typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
   typename CovarianceEstimatorType::Pointer covarianceEstimator = CovarianceEstimatorType::New();
-
-  m_NbSpl.resize(m_classNb);
-  m_Proportion.resize(m_classNb);
-  m_Covariances.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-  m_Means.resize(m_classNb,VectorType(m_featNb));
-  for ( unsigned int i = 0; i < m_classNb; ++i )
+  for ( unsigned int i = 0; i < m_ClassNb; ++i )
   {
-    m_NbSpl[i] = m_classSamples[i]->Size();
+    // Estimate covariance matrices, mean vectors and proportions
+    m_NbSpl[i] = m_ClassSamples[i]->Size();
     m_Proportion[i] = (float) m_NbSpl[i] / (float) sampleNb;
 
-    covarianceEstimator->SetInput( m_classSamples[i] );
+    covarianceEstimator->SetInput( m_ClassSamples[i] );
     covarianceEstimator->Update();
 
     m_Covariances[i] = covarianceEstimator->GetCovarianceMatrix().GetVnlMatrix();
-    m_Means[i] = VectorType(covarianceEstimator->GetMean().GetDataPointer(),m_featNb);
-  }
+    m_Means[i] = VectorType(covarianceEstimator->GetMean().GetDataPointer(),m_FeatNb);
 
-  // Decompose covariance matrix in eigenvalues/eigenvectors
-  m_Q.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-  m_eigenValues.resize(m_classNb,VectorType(m_featNb));
+    // Decompose covariance matrix in eigenvalues/eigenvectors
+    Decomposition(m_Covariances[i], m_Q[i], m_EigenValues[i]);
 
-  for (int i = 0; i < m_classNb; ++i)
-  {
-    // Make decomposition
-    Decomposition(m_Covariances[i], m_Q[i], m_eigenValues[i]);
-  }
-
-  // Precompute lambda^(-1/2) * Q and log(det lambda)
-  RealType lambda;
-  m_cstDecision.resize(m_classNb,0);
-  m_lambdaQ.resize(m_classNb, MatrixType(m_featNb,m_featNb));
-  for (int i = 0; i < m_classNb; ++i)
-  {
-    for (int j = 0; j < m_featNb; ++j)
+    // Precompute lambda^(-1/2) * Q and log(det lambda)
+    for (int j = 0; j < m_FeatNb; ++j)
     {
-      lambda = 1 / sqrt(m_eigenValues[i][j] + m_tau);
-      // for (int k = 0; k < m_featNb; ++k)
-      //   m_lambdaQ[i](j,k) = lambda * m_Q[i](k,j);
+      lambda = 1 / sqrt(m_EigenValues[i][j] + m_Tau);
       // Transposition and row multiplication at the same time
-      m_lambdaQ[i].set_row(j,lambda*m_Q[i].get_column(j));
+      m_LambdaQ[i].set_row(j,lambda*m_Q[i].get_column(j));
 
-      m_cstDecision[i] += log(m_eigenValues[i][j] + m_tau);
+      m_CstDecision[i] += log(m_EigenValues[i][j] + m_Tau);
     }
 
-    m_cstDecision[i] += -2*log(m_Proportion[i]);
+    m_CstDecision[i] += -2*log(m_Proportion[i]);
   }
 }
 
@@ -195,15 +188,15 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     }
   }
 
-  VectorType input_c(m_featNb);
+  VectorType input_c(m_FeatNb);
   // Compute decision function
-  std::vector<RealType> decisionFct(m_cstDecision);
+  std::vector<RealType> decisionFct(m_CstDecision);
   VectorType lambdaQInputC;
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
   {
-    vnl_copy(vnl_vector<InputValueType>(input.GetDataPointer(), m_featNb),input_c);
+    vnl_copy(vnl_vector<InputValueType>(input.GetDataPointer(), m_FeatNb),input_c);
     input_c -= m_Means[i];
-    lambdaQInputC = m_lambdaQ[i] * input_c;
+    lambdaQInputC = m_LambdaQ[i] * input_c;
 
     // Add sum of squared elements
     decisionFct[i] += lambdaQInputC.squared_magnitude();
@@ -226,9 +219,9 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   std::ofstream ofs(filename.c_str(), std::ios::out);
 
   // Store single value data
-  ofs << m_classNb << std::endl;
-  ofs << m_featNb << std::endl;
-  ofs << m_tau << std::endl;
+  ofs << m_ClassNb << std::endl;
+  ofs << m_FeatNb << std::endl;
+  ofs << m_Tau << std::endl;
 
   // Store label mapping (only one way)
   typedef typename std::map<TargetValueType, int>::const_iterator MapIterator;
@@ -237,7 +230,7 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   ofs << std::endl;
 
   // Store vector of nb of samples
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
     ofs << m_NbSpl[i] << " ";
   ofs << std::endl;
 
@@ -246,64 +239,64 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   ofs.precision(17);
 
   // Store vector of proportion of samples
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
     ofs << m_Proportion[i] << " ";
   ofs << std::endl;
 
   // Store vector of mean vector (one by line)
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_featNb; ++j)
+    for (int j = 0; j < m_FeatNb; ++j)
       ofs << m_Means[i][j] << " ";
 
     ofs << std::endl;
   }
 
   // Store vector of covariance matrices (one by line)
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_featNb; ++j)
+    for (int j = 0; j < m_FeatNb; ++j)
     {
-      for (int k = 0; k < m_featNb; ++k)
+      for (int k = 0; k < m_FeatNb; ++k)
         ofs << m_Covariances[i](j,k) << " ";
     }
     ofs << std::endl;
   }
 
   // Store vector of eigenvalues vector (one by line)
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_featNb; ++j)
-      ofs << m_eigenValues[i][j] << " ";
+    for (int j = 0; j < m_FeatNb; ++j)
+      ofs << m_EigenValues[i][j] << " ";
 
     ofs << std::endl;
   }
 
   // Store vector of eigenvectors matrices (one by line)
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_featNb; ++j)
+    for (int j = 0; j < m_FeatNb; ++j)
     {
-      for (int k = 0; k < m_featNb; ++k)
+      for (int k = 0; k < m_FeatNb; ++k)
         ofs << m_Q[i](j,k) << " ";
     }
     ofs << std::endl;
   }
 
   // Store vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_featNb; ++j)
+    for (int j = 0; j < m_FeatNb; ++j)
     {
-      for (int k = 0; k < m_featNb; ++k)
-        ofs << m_lambdaQ[i](j,k) << " ";
+      for (int k = 0; k < m_FeatNb; ++k)
+        ofs << m_LambdaQ[i](j,k) << " ";
     }
     ofs << std::endl;
   }
 
   // Store vector of scalar (logdet cov - 2*log proportion)
-  for (int i = 0; i < m_classNb; ++i)
-    ofs << m_cstDecision[i] << " ";
+  for (int i = 0; i < m_ClassNb; ++i)
+    ofs << m_CstDecision[i] << " ";
   ofs << std::endl;
 }
 
@@ -318,24 +311,24 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // ifs >> test;
 
   // Load single value data
-  ifs >> m_classNb;
-  ifs >> m_featNb;
-  ifs >> m_tau;
+  ifs >> m_ClassNb;
+  ifs >> m_FeatNb;
+  ifs >> m_Tau;
 
   // Allocation
-  m_NbSpl.resize(m_classNb);
-  m_Proportion.resize(m_classNb);
-  m_Means.resize(m_classNb,VectorType(m_featNb));
-  m_Covariances.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-  m_eigenValues.resize(m_classNb,VectorType(m_featNb));
-  m_Q.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-  m_lambdaQ.resize(m_classNb,MatrixType(m_featNb,m_featNb));
-  m_cstDecision.resize(m_classNb);
+  m_NbSpl.resize(m_ClassNb);
+  m_Proportion.resize(m_ClassNb);
+  m_Means.resize(m_ClassNb,VectorType(m_FeatNb));
+  m_Covariances.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
+  m_EigenValues.resize(m_ClassNb,VectorType(m_FeatNb));
+  m_Q.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
+  m_LambdaQ.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
+  m_CstDecision.resize(m_ClassNb);
 
   // Load label mapping (only one way)
   TargetValueType lab;
   int idLab;
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
   {
     ifs >> lab;
     ifs >> idLab;
@@ -344,44 +337,44 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   }
 
   // Load vector of nb of samples
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
     ifs >> m_NbSpl[i];
 
   // Load vector of proportion of samples
-  for (int i = 0; i < m_classNb; ++i)
+  for (int i = 0; i < m_ClassNb; ++i)
     ifs >> m_Proportion[i];
 
   // Load vector of mean vector (one by line)
-  for (int i = 0; i < m_classNb; ++i)
-    for (int j = 0; j < m_featNb; ++j)
+  for (int i = 0; i < m_ClassNb; ++i)
+    for (int j = 0; j < m_FeatNb; ++j)
       ifs >> m_Means[i][j];
 
   // Load vector of covariance matrices (one by line)
-  for (int i = 0; i < m_classNb; ++i)
-    for (int j = 0; j < m_featNb; ++j)
-      for (int k = 0; k < m_featNb; ++k)
+  for (int i = 0; i < m_ClassNb; ++i)
+    for (int j = 0; j < m_FeatNb; ++j)
+      for (int k = 0; k < m_FeatNb; ++k)
         ifs >> m_Covariances[i](j,k);
 
   // Load vector of eigenvalues vector (one by line)
-  for (int i = 0; i < m_classNb; ++i)
-    for (int j = 0; j < m_featNb; ++j)
-      ifs >> m_eigenValues[i][j];
+  for (int i = 0; i < m_ClassNb; ++i)
+    for (int j = 0; j < m_FeatNb; ++j)
+      ifs >> m_EigenValues[i][j];
 
   // Load vector of eigenvectors matrices (one by line)
-  for (int i = 0; i < m_classNb; ++i)
-    for (int j = 0; j < m_featNb; ++j)
-      for (int k = 0; k < m_featNb; ++k)
+  for (int i = 0; i < m_ClassNb; ++i)
+    for (int j = 0; j < m_FeatNb; ++j)
+      for (int k = 0; k < m_FeatNb; ++k)
         ifs >> m_Q[i](j,k);
 
   // Load vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
-  for (int i = 0; i < m_classNb; ++i)
-    for (int j = 0; j < m_featNb; ++j)
-      for (int k = 0; k < m_featNb; ++k)
-        ifs >> m_lambdaQ[i](j,k);
+  for (int i = 0; i < m_ClassNb; ++i)
+    for (int j = 0; j < m_FeatNb; ++j)
+      for (int k = 0; k < m_FeatNb; ++k)
+        ifs >> m_LambdaQ[i](j,k);
 
   // Load vector of scalar (logdet cov - 2*log proportion)
-  for (int i = 0; i < m_classNb; ++i)
-    ifs >> m_cstDecision[i];
+  for (int i = 0; i < m_ClassNb; ++i)
+    ifs >> m_CstDecision[i];
 }
 
 template <class TInputValue, class TOutputValue>
@@ -430,6 +423,23 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   Superclass::PrintSelf(os,indent);
 }
 
+
+template <class TInputValue, class TOutputValue>
+void
+GMMMachineLearningModel<TInputValue,TOutputValue>
+::SetMapOfClasses(const std::map<TargetValueType, int>& mapOfClasses)
+{
+  m_MapOfClasses = mapOfClasses;
+}
+
+template <class TInputValue, class TOutputValue>
+void
+GMMMachineLearningModel<TInputValue,TOutputValue>
+::SetMapOfIndices(const std::map<int, TargetValueType>& mapOfIndices)
+{
+ m_MapOfIndices = mapOfIndices;
+}
+
 template <class TInputValue, class TOutputValue>
 void
 GMMMachineLearningModel<TInputValue,TOutputValue>
@@ -452,22 +462,6 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 ::AddNbSpl(unsigned long n)
 {
   m_NbSpl.push_back(n);
-}
-
-template <class TInputValue, class TOutputValue>
-void
-GMMMachineLearningModel<TInputValue,TOutputValue>
-::UpdateProportion()
-{
-  unsigned totalNb = 0;
-  for (int i = 0; i < m_classNb; ++i)
-    totalNb += m_NbSpl[i];
-
-  for (int i = 0; i < m_classNb; ++i)
-  {
-    m_Proportion[i] = (float) m_NbSpl[i] / (float) totalNb;
-  }
-
 }
 
 

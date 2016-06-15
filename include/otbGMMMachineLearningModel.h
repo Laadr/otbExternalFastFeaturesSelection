@@ -69,19 +69,17 @@ public:
   virtual bool CanWriteFile(const std::string &);
   //@}
 
-  // itkSetMacro(m_MapOfClasses, std::map<TargetValueType, int >);
-  // itkGetMacro(m_MapOfClasses, std::map<TargetValueType, int >);
-  // itkSetMacro(m_MapOfIndices, std::map<int, TargetValueType >);
-  // itkGetMacro(m_MapOfIndices, std::map<int, TargetValueType >);
-  // itkSetMacro(m_classNb, unsigned int);
-  // itkGetMacro(m_classNb, unsigned int);
-  // itkSetMacro(m_featNb, unsigned int);
-  // itkGetMacro(m_featNb, unsigned int);
+  itkSetMacro(ClassNb, unsigned int);
+  itkGetMacro(ClassNb, unsigned int);
+  itkSetMacro(FeatNb, unsigned int);
+  itkGetMacro(FeatNb, unsigned int);
+
+  void SetMapOfClasses(const std::map<TargetValueType, int>& mapOfClasses);
+  void SetMapOfIndices(const std::map<int, TargetValueType>& mapOfIndices);
 
   void AddMean(VectorType vector);
   void AddCovMatrix(MatrixType covMatrix);
   void AddNbSpl(unsigned long n);
-  void UpdateProportion();
 
 protected:
   /** Constructor */
@@ -93,19 +91,14 @@ protected:
   /** PrintSelf method */
   void PrintSelf(std::ostream& os, itk::Indent indent) const;
 
-private:
-  GMMMachineLearningModel(const Self &); //purposely not implemented
-  void operator =(const Self&); //purposely not implemented
-
-
   /** Number of class */
-  unsigned int m_classNb;
+  unsigned int m_ClassNb;
 
   /** Number of features */
-  unsigned int m_featNb;
+  unsigned int m_FeatNb;
 
   /** Regularisation constant */
-  RealType m_tau;
+  RealType m_Tau;
 
   /** Map of classes */
   std::map<TargetValueType, int> m_MapOfClasses;
@@ -124,20 +117,25 @@ private:
   std::vector<MatrixType> m_Covariances;
 
   /** Vector of size C containing eigenvalues of the covariance matrices */
-  std::vector<VectorType> m_eigenValues;
+  std::vector<VectorType> m_EigenValues;
 
   /** Vector of size C of eigenvectors matrix (dxd) of each class (each line is an eigenvector) */
   std::vector<MatrixType> m_Q;
 
   /** Vector of size C of matrix (dxd) eigenvalues^(-1/2) * Q.T for each class */
-  std::vector<MatrixType> m_lambdaQ;
+  std::vector<MatrixType> m_LambdaQ;
 
   /** Vector of size C of scalar (logdet cov - 2*log proportion) for each class */
-  std::vector<RealType> m_cstDecision;
+  std::vector<RealType> m_CstDecision;
 
   /** Create one subset of samples for each class */
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
-  std::vector< typename ClassSampleType::Pointer > m_classSamples;
+  std::vector< typename ClassSampleType::Pointer > m_ClassSamples;
+
+private:
+  GMMMachineLearningModel(const Self &); //purposely not implemented
+  void operator =(const Self&); //purposely not implemented
+
 
 };
 } // end namespace otb

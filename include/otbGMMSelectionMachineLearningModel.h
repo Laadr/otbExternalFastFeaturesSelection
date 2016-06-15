@@ -34,22 +34,24 @@ public:
   typedef typename Superclass::TargetSampleType             TargetSampleType;
   typedef typename Superclass::TargetListSampleType         TargetListSampleType;
   typedef typename Superclass::ConfidenceValueType          ConfidenceValueType;
+  typedef typename Superclass::RealType                     RealType;
+  typedef typename Superclass::MatrixType                   MatrixType;
+  typedef typename Superclass::VectorType                   VectorType;
 
-  /** Types of the mean and the covariance calculator that will update
-   *  this component's distribution parameters */
-  typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
-  typedef typename CovarianceEstimatorType::MatrixType MatrixType;
-  typedef typename MatrixType::ValueType MatrixValueType;
-  typedef typename CovarianceEstimatorType::MeasurementVectorRealType MeanVectorType;
+  typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
+  typedef typename ClassSampleType::Pointer                 ClassSamplePointer;
 
   /** Run-time type information (and related methods). */
   itkNewMacro(Self);
   itkTypeMacro(GMMSelectionMachineLearningModel, GMMMachineLearningModel);
 
   void AddInstanceToFold(std::vector<InstanceIdentifier> & fold, int start, int end);
+  void UpdateProportion();
 
-  void ForwardSelection(std::string method, std::string criterion, int selestedVarNb, int nfold);
-  void FloatingForwardSelection(std::string method, std::string criterion, int selestedVarNb, int nfold);
+  void ForwardSelection(std::string criterion, int selectedVarNb, int nfold);
+  void FloatingForwardSelection(std::string criterion, int selectedVarNb, int nfold);
+
+  ClassSamplePointer GetClassSamples(int classId);
 
 protected:
   /** Constructor */
@@ -61,15 +63,15 @@ protected:
   /** PrintSelf method */
   void PrintSelf(std::ostream& os, itk::Indent indent) const;
 
+  /** Vector of size C of scalar (2*log proportion) for each class */
+  std::vector<RealType> m_Logprop;
+
 private:
   GMMSelectionMachineLearningModel(const Self &); //purposely not implemented
   void operator =(const Self&); //purposely not implemented
 
-  typename CovarianceEstimatorType::Pointer m_CovarianceEstimator;
-
-  /** Array containing id of test samples for cross validation */
-  std::vector<InstanceIdentifier> m_fold;
-
+  /** Array containing id of test samples for each class for cross validation */
+  std::vector<ClassSamplePointer> m_Fold;
 };
 } // end namespace otb
 
