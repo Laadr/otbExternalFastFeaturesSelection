@@ -33,11 +33,12 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::AddInstanceToFold(std::vector<InstanceIdentifier> & input, int start, int end)
+::AddInstanceToFold(typename InputListSampleType::Pointer samples, std::vector<InstanceIdentifier> & input, int start, int end)
 {
   m_Fold.push_back( ClassSampleType::New() );
+  m_Fold[m_Fold.size()-1]->SetSample( samples );
   for (int i = 0; i < end-start; ++i)
-    (*m_Fold.end())->AddInstance( input[i] );
+    m_Fold[m_Fold.size()-1]->AddInstance( input[i] );
 }
 
 template <class TInputValue, class TOutputValue>
@@ -49,10 +50,12 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
   for (int i = 0; i < this->m_ClassNb; ++i)
     totalNb += this->m_NbSpl[i];
 
+  this->m_Proportion.resize(this->m_ClassNb);
+  m_Logprop.resize(this->m_ClassNb);
   for (int i = 0; i < this->m_ClassNb; ++i)
   {
     this->m_Proportion[i] = (double) this->m_NbSpl[i] / (double) totalNb;
-    m_Logprop[i]    = log(this->m_Proportion[i]);
+    m_Logprop[i]          = (RealType) log(this->m_Proportion[i]);
   }
 
 }
@@ -60,14 +63,15 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ForwardSelection(std::string criterion, int selectedVarNb, int nfold)
+::Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold)
 {
 
   // Creation of submodel for cross-validation
   if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0))
   {
     // Allocation
-    std::vector<GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::Pointer > submodelCv(nfold);
+    for (int j = 0; j < nfold; ++j)
+      m_SubmodelCv.push_back(GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::New());
     typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
     typename CovarianceEstimatorType::Pointer covarianceEstimator = CovarianceEstimatorType::New();
     VectorType meanFold;
@@ -89,31 +93,31 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       {
         // Add subpart of id to fold
         if (j==nfold-1)
-          submodelCv[j]->AddInstanceToFold(indices,j*this->m_NbSpl[i]/nfold,this->m_NbSpl[i]+1);
+          m_SubmodelCv[j]->AddInstanceToFold(this->GetInputListSample(), indices,j*nbSplFold,this->m_NbSpl[i]+1);
         else
-          submodelCv[j]->AddInstanceToFold(indices,j*this->m_NbSpl[i]/nfold,(j+1)*this->m_NbSpl[i]/nfold);
+          m_SubmodelCv[j]->AddInstanceToFold(this->GetInputListSample(), indices,j*nbSplFold,(j+1)*nbSplFold);
 
         // Update model for each fold
-        submodelCv[j]->SetMapOfClasses(this->m_MapOfClasses);
-        submodelCv[j]->SetMapOfIndices(this->m_MapOfIndices);
-        submodelCv[j]->SetClassNb(this->m_ClassNb);
-        submodelCv[j]->SetFeatNb(this->m_FeatNb);
+        m_SubmodelCv[j]->SetMapOfClasses(this->m_MapOfClasses);
+        m_SubmodelCv[j]->SetMapOfIndices(this->m_MapOfIndices);
+        m_SubmodelCv[j]->SetClassNb(this->m_ClassNb);
+        m_SubmodelCv[j]->SetFeatNb(this->m_FeatNb);
 
-        covarianceEstimator->SetInput( submodelCv[j]->GetClassSamples(i) );
+        covarianceEstimator->SetInput( m_SubmodelCv[j]->GetClassSamples(i) );
         covarianceEstimator->Update();
 
         covarianceFold = covarianceEstimator->GetCovarianceMatrix().GetVnlMatrix();
         meanFold       = VectorType(covarianceEstimator->GetMean().GetDataPointer(),this->m_FeatNb);
 
-        submodelCv[j]->AddNbSpl(nbSplFold);
-        submodelCv[j]->AddMean( (1/((RealType) this->m_NbSpl[i] - (RealType) nbSplFold)) * ((RealType) this->m_NbSpl[i] * this->m_Means[i] - (RealType) nbSplFold * meanFold) );
+        m_SubmodelCv[j]->AddNbSpl(nbSplFold);
+        m_SubmodelCv[j]->AddMean( (1/((RealType) this->m_NbSpl[i] - (RealType) nbSplFold)) * ((RealType) this->m_NbSpl[i] * this->m_Means[i] - (RealType) nbSplFold * meanFold) );
         adjustedMean = MatrixType((this->m_Means[i]-meanFold).data_block(), this->m_FeatNb, 1);
-        submodelCv[j]->AddCovMatrix( (1/((RealType)this->m_NbSpl[i]-(RealType)nbSplFold-1)) * ( ((RealType)this->m_NbSpl[i]-1)*this->m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)this->m_NbSpl[i]*(RealType)nbSplFold/((RealType)this->m_NbSpl[i]-(RealType)nbSplFold) * adjustedMean * adjustedMean.transpose() ) );
+        m_SubmodelCv[j]->AddCovMatrix( (1/((RealType)this->m_NbSpl[i]-(RealType)nbSplFold-1)) * ( ((RealType)this->m_NbSpl[i]-1)*this->m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)this->m_NbSpl[i]*(RealType)nbSplFold/((RealType)this->m_NbSpl[i]-(RealType)nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType - ok?
       }
     }
 
     for (int i = 0; i < nfold; ++i)
-      submodelCv[i]->UpdateProportion();
+      m_SubmodelCv[i]->UpdateProportion();
   }
 
 }
@@ -121,7 +125,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::FloatingForwardSelection(std::string criterion, int selectedVarNb, int nfold)
+::ForwardSelection(std::string criterion, int selectedVarNb)
+{
+
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::FloatingForwardSelection(std::string criterion, int selectedVarNb)
 {
 
 }

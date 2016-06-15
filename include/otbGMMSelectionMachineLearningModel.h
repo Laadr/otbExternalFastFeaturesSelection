@@ -45,11 +45,13 @@ public:
   itkNewMacro(Self);
   itkTypeMacro(GMMSelectionMachineLearningModel, GMMMachineLearningModel);
 
-  void AddInstanceToFold(std::vector<InstanceIdentifier> & fold, int start, int end);
+  void AddInstanceToFold(typename InputListSampleType::Pointer samples, std::vector<InstanceIdentifier> & fold, int start, int end);
   void UpdateProportion();
 
-  void ForwardSelection(std::string criterion, int selectedVarNb, int nfold);
-  void FloatingForwardSelection(std::string criterion, int selectedVarNb, int nfold);
+
+  void Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold);
+  void ForwardSelection(std::string criterion, int selectedVarNb);
+  void FloatingForwardSelection(std::string criterion, int selectedVarNb);
 
   ClassSamplePointer GetClassSamples(int classId);
 
@@ -65,6 +67,9 @@ protected:
 
   /** Vector of size C of scalar (2*log proportion) for each class */
   std::vector<RealType> m_Logprop;
+
+  /** Vector of model for cross-validation */
+  std::vector<GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::Pointer > m_SubmodelCv;
 
 private:
   GMMSelectionMachineLearningModel(const Self &); //purposely not implemented
