@@ -47,15 +47,15 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
 ::UpdateProportion()
 {
   unsigned totalNb = 0;
-  for (int i = 0; i < this->m_ClassNb; ++i)
-    totalNb += this->m_NbSpl[i];
+  for (int i = 0; i < Superclass::m_ClassNb; ++i)
+    totalNb += Superclass::m_NbSpl[i];
 
-  this->m_Proportion.resize(this->m_ClassNb);
-  m_Logprop.resize(this->m_ClassNb);
-  for (int i = 0; i < this->m_ClassNb; ++i)
+  Superclass::m_Proportion.resize(Superclass::m_ClassNb);
+  m_Logprop.resize(Superclass::m_ClassNb);
+  for (int i = 0; i < Superclass::m_ClassNb; ++i)
   {
-    this->m_Proportion[i] = (double) this->m_NbSpl[i] / (double) totalNb;
-    m_Logprop[i]          = (RealType) log(this->m_Proportion[i]);
+    Superclass::m_Proportion[i] = (double) Superclass::m_NbSpl[i] / (double) totalNb;
+    m_Logprop[i]          = (RealType) log(Superclass::m_Proportion[i]);
   }
 
 }
@@ -77,42 +77,42 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     VectorType meanFold;
     MatrixType covarianceFold, adjustedMean;
 
-    for (unsigned int i = 0; i < this->m_ClassNb; ++i)
+    for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
     {
       // Shuffle id of samples
       std::srand( unsigned( std::time(0) ) );
       std::vector<InstanceIdentifier> indices;
-      for (unsigned j=0; j<this->m_NbSpl[i]; ++j)
-        indices.push_back((this->m_ClassSamples[i])->GetInstanceIdentifier(j));
+      for (unsigned j=0; j<Superclass::m_NbSpl[i]; ++j)
+        indices.push_back((Superclass::m_ClassSamples[i])->GetInstanceIdentifier(j));
 
       std::random_shuffle( indices.begin(), indices.end() );
 
-      unsigned nbSplFold = this->m_NbSpl[i]/nfold; // to verify
+      unsigned nbSplFold = Superclass::m_NbSpl[i]/nfold; // to verify
 
       for (int j = 0; j < nfold; ++j)
       {
         // Add subpart of id to fold
         if (j==nfold-1)
-          m_SubmodelCv[j]->AddInstanceToFold(this->GetInputListSample(), indices,j*nbSplFold,this->m_NbSpl[i]+1);
+          m_SubmodelCv[j]->AddInstanceToFold(Superclass::GetInputListSample(), indices,j*nbSplFold,Superclass::m_NbSpl[i]+1);
         else
-          m_SubmodelCv[j]->AddInstanceToFold(this->GetInputListSample(), indices,j*nbSplFold,(j+1)*nbSplFold);
+          m_SubmodelCv[j]->AddInstanceToFold(Superclass::GetInputListSample(), indices,j*nbSplFold,(j+1)*nbSplFold);
 
         // Update model for each fold
-        m_SubmodelCv[j]->SetMapOfClasses(this->m_MapOfClasses);
-        m_SubmodelCv[j]->SetMapOfIndices(this->m_MapOfIndices);
-        m_SubmodelCv[j]->SetClassNb(this->m_ClassNb);
-        m_SubmodelCv[j]->SetFeatNb(this->m_FeatNb);
+        m_SubmodelCv[j]->SetMapOfClasses(Superclass::m_MapOfClasses);
+        m_SubmodelCv[j]->SetMapOfIndices(Superclass::m_MapOfIndices);
+        m_SubmodelCv[j]->SetClassNb(Superclass::m_ClassNb);
+        m_SubmodelCv[j]->SetFeatNb(Superclass::m_FeatNb);
 
         covarianceEstimator->SetInput( m_SubmodelCv[j]->GetClassSamples(i) );
         covarianceEstimator->Update();
 
         covarianceFold = covarianceEstimator->GetCovarianceMatrix().GetVnlMatrix();
-        meanFold       = VectorType(covarianceEstimator->GetMean().GetDataPointer(),this->m_FeatNb);
+        meanFold       = VectorType(covarianceEstimator->GetMean().GetDataPointer(),Superclass::m_FeatNb);
 
         m_SubmodelCv[j]->AddNbSpl(nbSplFold);
-        m_SubmodelCv[j]->AddMean( (1/((RealType) this->m_NbSpl[i] - (RealType) nbSplFold)) * ((RealType) this->m_NbSpl[i] * this->m_Means[i] - (RealType) nbSplFold * meanFold) );
-        adjustedMean = MatrixType((this->m_Means[i]-meanFold).data_block(), this->m_FeatNb, 1);
-        m_SubmodelCv[j]->AddCovMatrix( (1/((RealType)this->m_NbSpl[i]-(RealType)nbSplFold-1)) * ( ((RealType)this->m_NbSpl[i]-1)*this->m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)this->m_NbSpl[i]*(RealType)nbSplFold/((RealType)this->m_NbSpl[i]-(RealType)nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType - ok?
+        m_SubmodelCv[j]->AddMean( (1/((RealType) Superclass::m_NbSpl[i] - (RealType) nbSplFold)) * ((RealType) Superclass::m_NbSpl[i] * Superclass::m_Means[i] - (RealType) nbSplFold * meanFold) );
+        adjustedMean = MatrixType((Superclass::m_Means[i]-meanFold).data_block(), Superclass::m_FeatNb, 1);
+        m_SubmodelCv[j]->AddCovMatrix( (1/((RealType)Superclass::m_NbSpl[i]-(RealType)nbSplFold-1)) * ( ((RealType)Superclass::m_NbSpl[i]-1)*Superclass::m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)Superclass::m_NbSpl[i]*(RealType)nbSplFold/((RealType)Superclass::m_NbSpl[i]-(RealType)nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType - ok?
       }
     }
 
@@ -136,8 +136,8 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   RealType maxValue;
   std::vector<RealType> criterionBestValues;
   std::list<int> variablesPool;
-  variablesPool.resize(this->m_FeatNb);
-  for (int i = 0; i < this->m_FeatNb; ++i)
+  variablesPool.resize(Superclass::m_FeatNb);
+  for (int i = 0; i < Superclass::m_FeatNb; ++i)
   for (std::list<int>::iterator it = variablesPool.begin(); it != variablesPool.end(); it++)
     *it = i;
 
@@ -195,6 +195,47 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ComputeJM(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar)
 {
+
+  // Compute all possible update of 0.5* log det cov(idx)
+  std::vector<std::vector<RealType> > halfedLogdet(Superclass::m_ClassNb, std::vector<RealType>(variablesPool.size()));
+  if (selectedVar.empty())
+  {
+    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+      for (int j = 0; j < variablesPool.size(); ++j)
+        halfedLogdet[c][j] = 0.5*log(Superclass::m_Covariances[c](j,j));
+  }
+  else
+  {
+    MatrixType Q(Superclass::m_FeatNb,Superclass::m_FeatNb);
+    VectorType eigenValues(Superclass::m_FeatNb);
+    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+    {
+      // Superclass::Decomposition(m_Covariances, Q, eigenValues);
+    }
+  }
+
+
+// halfedLogdet  = sp.zeros((model.C,variables.size))
+
+// if len(idx)==0:
+//     for c in xrange(model.C):
+//         for k,var in enumerate(variables):
+//             halfedLogdet[c,k] = 0.5*sp.log(model.cov[c,var,var])
+// else:
+//     for c in xrange(model.C):
+//         vp,Q,_ = model.decomposition(model.cov[c,idx,:][:,idx])
+//         logdet = sp.sum(sp.log(vp))
+//         invCov = sp.dot(Q,((1/vp)*Q).T)
+//         for k,var in enumerate(variables):
+//             if direction=='forward':
+//                 alpha = model.cov[c,var,var] - sp.dot(model.cov[c,var,:][idx], sp.dot(invCov,model.cov[c,var,:][idx].T) )
+//             elif direction=='backward':
+//                 alpha = 1/invCov[k,k]
+
+//             if alpha < eps:
+//                 alpha = eps
+//             halfedLogdet[c,k]  = 0.5*( sp.log(alpha) + logdet)
+//     del vp,Q,alpha,invCov
 
 }
 
