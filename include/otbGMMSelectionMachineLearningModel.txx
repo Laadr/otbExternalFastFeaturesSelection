@@ -63,7 +63,7 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold)
+::Selection(std::vector<int> & selectedVar, std::string direction, std::string criterion, int selectedVarNb, int nfold)
 {
 
   // Creation of submodel for cross-validation
@@ -120,12 +120,64 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       m_SubmodelCv[i]->UpdateProportion();
   }
 
+  if (direction.compare("forward") == 0)
+    ForwardSelection(selectedVar, criterion, selectedVarNb);
+  else if (direction.compare("sffs") == 0)
+    FloatingForwardSelection(selectedVar, criterion, selectedVarNb);
 }
 
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ForwardSelection(std::string criterion, int selectedVarNb)
+::ForwardSelection(std::vector<int> & selectedVar, std::string criterion, int selectedVarNb)
+{
+  // Initialization
+  int currentSelectedVarNb = 0;
+  RealType maxValue;
+  std::vector<RealType> criterionBestValues;
+  std::list<int> variablesPool;
+  variablesPool.resize(this->m_FeatNb);
+  for (int i = 0; i < this->m_FeatNb; ++i)
+  for (std::list<int>::iterator it = variablesPool.begin(); it != variablesPool.end(); it++)
+    *it = i;
+
+  // Start the forward search
+  while ((currentSelectedVarNb<selectedVarNb)&&(!variablesPool.empty()))
+  {
+
+    std::vector<RealType> criterionVal(variablesPool.size(),0);
+
+    // Compute criterion function
+    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+    {
+      ComputeClassifRate(criterionVal,"forward",variablesPool,selectedVar,criterion);
+    }
+    else if (criterion.compare("JM") == 0)
+    {
+      ComputeJM(criterionVal,"forward",variablesPool,selectedVar);
+    }
+    else if (criterion.compare("divKL") == 0)
+    {
+      ComputeDivKL(criterionVal,"forward",variablesPool,selectedVar);
+    }
+
+    // Select the variable that provides the highest criterion value
+    maxValue = *(std::max_element(criterionVal.begin(), criterionVal.end()));
+    criterionBestValues.push_back(maxValue);
+
+    // Add it to selected var and delete it from the pool
+    selectedVar.push_back(maxValue);
+    variablesPool.remove(maxValue);
+
+    currentSelectedVarNb++;
+  }
+
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::FloatingForwardSelection(std::vector<int> & selectedVar, std::string criterion, int selectedVarNb)
 {
 
 }
@@ -133,7 +185,23 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::FloatingForwardSelection(std::string criterion, int selectedVarNb)
+::ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar, const std::string criterion)
+{
+
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::ComputeJM(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar)
+{
+
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::ComputeDivKL(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar)
 {
 
 }
