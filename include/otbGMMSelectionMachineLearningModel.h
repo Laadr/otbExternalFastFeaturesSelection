@@ -45,12 +45,15 @@ public:
   itkNewMacro(Self);
   itkTypeMacro(GMMSelectionMachineLearningModel, GMMMachineLearningModel);
 
+  void ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput);
+  void ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput);
+  void ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& ouput);
   void AddInstanceToFold(typename InputListSampleType::Pointer samples, std::vector<InstanceIdentifier> & fold, int start, int end);
   void UpdateProportion();
 
-  void ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar, const std::string criterion);
-  void ComputeJM         (std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar);
-  void ComputeDivKL      (std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar);
+  void ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::vector<int> & selectedVar, const std::string criterion);
+  void ComputeJM         (std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool, const std::vector<int> & selectedVar);
+  void ComputeDivKL      (std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::vector<int> & selectedVar);
 
   void Selection(std::vector<int> & selectedVar, std::string direction, std::string criterion, int selectedVarNb, int nfold);
   void ForwardSelection(std::vector<int> & selectedVar, std::string criterion, int selectedVarNb);

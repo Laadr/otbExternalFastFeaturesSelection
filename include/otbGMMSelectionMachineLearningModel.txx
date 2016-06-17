@@ -33,6 +33,40 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput)
+{
+  for (int i = 0; i < indexes.size(); ++i)
+    ouput(i,0) = input[indexes[i]];
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& ouput)
+{
+  for (int i = 0; i < indexes.size(); ++i)
+  {
+    ouput(i,i) = input(indexes[i],indexes[i]);
+    for (int j = i+1; j < indexes.size(); ++j)
+    {
+      ouput(i,j) = input(indexes[i],indexes[j]);
+      ouput(j,i) = ouput(i,j);
+    }
+  }
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput)
+{
+  for (int i = 0; i < indexesRow.size(); ++i)
+    ouput(i,0) = input(indexesRow[i],colIndex);
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::AddInstanceToFold(typename InputListSampleType::Pointer samples, std::vector<InstanceIdentifier> & input, int start, int end)
 {
   m_Fold.push_back( ClassSampleType::New() );
@@ -55,7 +89,7 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
   for (int i = 0; i < Superclass::m_ClassNb; ++i)
   {
     Superclass::m_Proportion[i] = (double) Superclass::m_NbSpl[i] / (double) totalNb;
-    m_Logprop[i]          = (RealType) log(Superclass::m_Proportion[i]);
+    m_Logprop[i]                = (RealType) log(Superclass::m_Proportion[i]);
   }
 
 }
@@ -133,13 +167,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
   // Initialization
   int currentSelectedVarNb = 0;
-  RealType maxValue;
+  RealType argMaxValue;
   std::vector<RealType> criterionBestValues;
-  std::list<int> variablesPool;
+  std::vector<int> variablesPool;
   variablesPool.resize(Superclass::m_FeatNb);
+  selectedVar.clear();
   for (int i = 0; i < Superclass::m_FeatNb; ++i)
-  for (std::list<int>::iterator it = variablesPool.begin(); it != variablesPool.end(); it++)
-    *it = i;
+    variablesPool[i] = i;
 
   // Start the forward search
   while ((currentSelectedVarNb<selectedVarNb)&&(!variablesPool.empty()))
@@ -162,12 +196,18 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     }
 
     // Select the variable that provides the highest criterion value
-    maxValue = *(std::max_element(criterionVal.begin(), criterionVal.end()));
-    criterionBestValues.push_back(maxValue);
+    argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
+    criterionBestValues.push_back(criterionVal[argMaxValue]);
+
+    for (typename std::vector<RealType>::iterator it = criterionBestValues.begin(); it != criterionBestValues.end(); ++it)
+    {
+      std::cout << ' ' << *it;
+    }
+    std::cout << std::endl;
 
     // Add it to selected var and delete it from the pool
-    selectedVar.push_back(maxValue);
-    variablesPool.remove(maxValue);
+    selectedVar.push_back(variablesPool[argMaxValue]);
+    variablesPool.erase(variablesPool.begin()+argMaxValue);
 
     currentSelectedVarNb++;
   }
@@ -185,7 +225,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar, const std::string criterion)
+::ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::vector<int> & selectedVar, const std::string criterion)
 {
 
 }
@@ -193,8 +233,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ComputeJM(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar)
+::ComputeJM(std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool, const std::vector<int> & selectedVar)
 {
+
+  int selectedVarNb = selectedVar.size();
 
   // Compute all possible update of 0.5* log det cov(idx)
   std::vector<std::vector<RealType> > halfedLogdet(Superclass::m_ClassNb, std::vector<RealType>(variablesPool.size()));
@@ -203,46 +245,130 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
       for (int j = 0; j < variablesPool.size(); ++j)
         halfedLogdet[c][j] = 0.5*log(Superclass::m_Covariances[c](j,j));
+
+    RealType md, cs, bij;
+
+    for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+    {
+      for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+      {
+        std::vector<int>::iterator varIt = variablesPool.begin();
+        for (int j = 0; j < variablesPool.size(); ++j)
+        {
+          md = Superclass::m_Means[c1][*varIt] - Superclass::m_Means[c2][*varIt];
+          cs = Superclass::m_Covariances[c1](*varIt,*varIt) + Superclass::m_Covariances[c2](*varIt,*varIt);
+
+          bij   = md*(0.25/cs)*md + 0.5*(log(cs) - halfedLogdet[c1][j] - halfedLogdet[c2][j]); // NB: md*(0.25/cs)*md = md*(2/cs)*md.T 8
+          JM[j] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * sqrt(2*(1-exp(-bij)));
+
+          varIt++;
+        }
+      }
+    }
   }
   else
   {
-    MatrixType Q(Superclass::m_FeatNb,Superclass::m_FeatNb);
-    VectorType eigenValues(Superclass::m_FeatNb);
+    std::vector<MatrixType> subCovariances(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
+    MatrixType Q(selectedVarNb,selectedVarNb);
+    MatrixType invCov(selectedVarNb,selectedVarNb);
+    VectorType eigenValues(selectedVarNb);
+    RealType logdet, alpha;
+    MatrixType u(selectedVarNb,1);
+
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
     {
-      // Superclass::Decomposition(m_Covariances, Q, eigenValues);
+      ExtractSubSymmetricMatrix(selectedVar,Superclass::m_Covariances[c],subCovariances[c]);
+      Superclass::Decomposition(subCovariances[c], Q, eigenValues);
+
+      invCov = Q * (vnl_diag_matrix<RealType>(eigenValues).invert_in_place() * Q.transpose());
+      logdet = eigenValues.apply(log).sum();
+
+      std::vector<int>::iterator varIt = variablesPool.begin();
+      for (int j = 0; j < variablesPool.size(); ++j)
+      {
+        if (direction.compare("forward")==0)
+        {
+          ExtractReducedColumn(*varIt,selectedVar,Superclass::m_Covariances[c],u);
+          alpha = Superclass::m_Covariances[c](*varIt,*varIt) - (u.transpose() * (invCov * u))(0,0);
+          varIt++;
+        }
+        else if (direction.compare("backward")==0)
+        {
+          alpha = invCov(j,j); // actually corresponds to 1/alpha from report
+        }
+
+        if (alpha < std::numeric_limits<RealType>::epsilon())
+          alpha = std::numeric_limits<RealType>::epsilon();
+        halfedLogdet[c][j] = 0.5* (log(alpha) + logdet);
+      }
+    }
+
+    MatrixType cs(selectedVarNb,selectedVarNb);
+    RealType logdet_c1c2, cst_feat, bij;
+    MatrixType md(selectedVarNb,1);
+    MatrixType extractUTmp(selectedVarNb,1);
+
+    // Extract means
+    std::vector<MatrixType> subMeans(Superclass::m_ClassNb,MatrixType(selectedVarNb,1));
+    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+      ExtractVectorToColMatrix(selectedVar, Superclass::m_Means[c], subMeans[c]);
+
+    // Compute JM
+    for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+    {
+      for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+      {
+        cs = 0.5*(subCovariances[c1] + subCovariances[c2]);
+        Superclass::Decomposition(cs, Q, eigenValues);
+
+        invCov = Q * (vnl_diag_matrix<RealType>(eigenValues).invert_in_place() * Q.transpose());
+        logdet = eigenValues.apply(log).sum();
+
+        std::vector<int>::iterator varIt = variablesPool.begin();
+        for (int j = 0; j < variablesPool.size(); ++j)
+        {
+          if (direction.compare("forward")==0)
+          {
+            md = subMeans[c1].extract(selectedVarNb,1) - subMeans[c2].extract(selectedVarNb,1);
+
+            ExtractReducedColumn(*varIt,selectedVar,Superclass::m_Covariances[c1],u);
+            ExtractReducedColumn(*varIt,selectedVar,Superclass::m_Covariances[c2],extractUTmp);
+            u = 0.5*(u+extractUTmp);
+
+            alpha = 0.5*(Superclass::m_Covariances[c1](*varIt,*varIt) + Superclass::m_Covariances[c2](*varIt,*varIt)) - (u.transpose() * (invCov * u))(0,0);
+            if (alpha < std::numeric_limits<RealType>::epsilon())
+              alpha = std::numeric_limits<RealType>::epsilon();
+
+            logdet_c1c2 = logdet + log(alpha) + (selectedVarNb+1)*log(2);
+
+            cst_feat = alpha * pow( ( ((-1/alpha)*(u.transpose()*invCov)*md)(0,0) + (Superclass::m_Means[c1][*varIt] - Superclass::m_Means[c2][*varIt])/alpha), 2);
+
+            varIt++;
+          }
+          else if (direction.compare("backward")==0)
+          {
+            alpha = 1/invCov(j,j);
+            if (alpha < std::numeric_limits<RealType>::epsilon())
+              alpha = std::numeric_limits<RealType>::epsilon();
+
+            logdet_c1c2 = logdet - log(alpha) + (selectedVarNb-1)*log(2);
+
+            ExtractReducedColumn(j,selectedVar,invCov,u);
+            cst_feat = - alpha * pow( (u.transpose()*md)(0,0), 2);
+          }
+
+          bij = (1/8.) * (md.transpose() * (invCov*md))(0,0) + 0.5*(logdet_c1c2 - halfedLogdet[c1][j] - halfedLogdet[c2][j]);
+          JM[j] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * sqrt(2*(1-exp(-bij)));
+        }
+      }
     }
   }
-
-
-// halfedLogdet  = sp.zeros((model.C,variables.size))
-
-// if len(idx)==0:
-//     for c in xrange(model.C):
-//         for k,var in enumerate(variables):
-//             halfedLogdet[c,k] = 0.5*sp.log(model.cov[c,var,var])
-// else:
-//     for c in xrange(model.C):
-//         vp,Q,_ = model.decomposition(model.cov[c,idx,:][:,idx])
-//         logdet = sp.sum(sp.log(vp))
-//         invCov = sp.dot(Q,((1/vp)*Q).T)
-//         for k,var in enumerate(variables):
-//             if direction=='forward':
-//                 alpha = model.cov[c,var,var] - sp.dot(model.cov[c,var,:][idx], sp.dot(invCov,model.cov[c,var,:][idx].T) )
-//             elif direction=='backward':
-//                 alpha = 1/invCov[k,k]
-
-//             if alpha < eps:
-//                 alpha = eps
-//             halfedLogdet[c,k]  = 0.5*( sp.log(alpha) + logdet)
-//     del vp,Q,alpha,invCov
-
 }
 
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ComputeDivKL(std::vector<RealType> & criterionVal, const std::string direction, const std::list<int> & variablesPool, const std::vector<int> & selectedVar)
+::ComputeDivKL(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::vector<int> & selectedVar)
 {
 
 }
