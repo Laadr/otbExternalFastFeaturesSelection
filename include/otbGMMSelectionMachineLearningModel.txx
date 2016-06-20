@@ -355,7 +355,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             cst_feat = - alpha * pow( (u.transpose()*md)(0,0), 2);
           }
 
-          bij = (1/8.) * (md.transpose() * (invCov*md))(0,0) + 0.5*(logdet_c1c2 - halfedLogdet[c1][j] - halfedLogdet[c2][j]);
+          bij = (1/8.) * (md.transpose() * (invCov*md))(0,0) + cst_feat/8 + 0.5*(logdet_c1c2 - halfedLogdet[c1][j] - halfedLogdet[c2][j]);
           JM[j] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * sqrt(2*(1-exp(-bij)));
         }
       }
