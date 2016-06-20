@@ -47,6 +47,7 @@ public:
 
   std::vector<int> GetSelectedVar();
 
+  void ExtractVector(const std::vector<int> & indexes, const VectorType& input, VectorType& ouput);
   void ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput);
   void ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput);
   void ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& ouput);
@@ -60,6 +61,9 @@ public:
   void Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold);
   void ForwardSelection(std::string criterion, int selectedVarNb);
   void FloatingForwardSelection(std::string criterion, int selectedVarNb);
+
+  /** Train the machine learning model */
+  virtual void Train();
 
   /** Predict values using the model */
   virtual TargetSampleType Predict(const InputSampleType& input, ConfidenceValueType *quality=NULL) const;
@@ -78,6 +82,9 @@ protected:
 
   /** Vector of selected variables */
   std::vector<int> m_SelectedVar;
+
+  /** Vector of size C containing the mean vector of each class for the selected variables */
+  std::vector<VectorType> m_SubMeans;
 
   /** Vector of size C of scalar (2*log proportion) for each class */
   std::vector<RealType> m_Logprop;

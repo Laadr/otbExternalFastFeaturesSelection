@@ -33,6 +33,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::ExtractVector(const std::vector<int> & indexes, const VectorType& input, VectorType& ouput)
+{
+  for (int i = 0; i < indexes.size(); ++i)
+    ouput[i] = input[indexes[i]];
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput)
 {
   for (int i = 0; i < indexes.size(); ++i)
@@ -89,7 +98,7 @@ GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
   for (int i = 0; i < Superclass::m_ClassNb; ++i)
   {
     Superclass::m_Proportion[i] = (double) Superclass::m_NbSpl[i] / (double) totalNb;
-    m_Logprop[i]                = (RealType) log(Superclass::m_Proportion[i]);
+    m_Logprop[i]                = 2* (RealType) log(Superclass::m_Proportion[i]);
   }
 }
 
@@ -157,6 +166,43 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     ForwardSelection(criterion, selectedVarNb);
   else if (direction.compare("sffs") == 0)
     FloatingForwardSelection(criterion, selectedVarNb);
+
+
+  // Precomputation of terms use for prediction //
+  Superclass::m_Q.clear();
+  Superclass::m_EigenValues.clear();
+  Superclass::m_CstDecision.clear();
+  Superclass::m_LambdaQ.clear();
+  Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
+  Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(selectedVarNb));
+  MatrixType subCovariance(selectedVarNb,selectedVarNb);
+
+  Superclass::m_CstDecision.resize(Superclass::m_ClassNb,0);
+  Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(selectedVarNb,selectedVarNb));
+  m_SubMeans.resize(Superclass::m_ClassNb, VectorType(selectedVarNb));
+
+  RealType lambda;
+  for ( unsigned int i = 0; i < Superclass::m_ClassNb; ++i )
+  {
+    // Decompose covariance matrix in eigenvalues/eigenvectors
+    ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[i],subCovariance);
+    Superclass::Decomposition(subCovariance, Superclass::m_Q[i], Superclass::m_EigenValues[i]);
+
+    // Extract mean corresponding to slected variables
+    ExtractVector(m_SelectedVar,Superclass::m_Means[i],m_SubMeans[i]);
+
+    // Precompute lambda^(-1/2) * Q and log(det lambda)
+    for (int j = 0; j < selectedVarNb; ++j)
+    {
+      lambda = 1 / sqrt(Superclass::m_EigenValues[i][j]);
+      // Transposition and row multiplication at the same time
+      Superclass::m_LambdaQ[i].set_row(j,lambda*Superclass::m_Q[i].get_column(j));
+
+      Superclass::m_CstDecision[i] += log(Superclass::m_EigenValues[i][j]);
+    }
+
+    Superclass::m_CstDecision[i] += -2*log(Superclass::m_Proportion[i]);
+  }
 }
 
 template <class TInputValue, class TTargetValue>
@@ -198,6 +244,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
     criterionBestValues.push_back(criterionVal[argMaxValue]);
 
+    std::cout << "Criterion best values:";
     for (typename std::vector<RealType>::iterator it = criterionBestValues.begin(); it != criterionBestValues.end(); ++it)
     {
       std::cout << ' ' << *it;
@@ -371,16 +418,64 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
 }
 
+/** Train the machine learning model */
+template <class TInputValue, class TOutputValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
+::Train()
+{
+  Superclass::Train();
+}
+
+
 template <class TInputValue, class TOutputValue>
 typename GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
 ::TargetSampleType
 GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
-::Predict(const InputSampleType & input, ConfidenceValueType *quality) const
+::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
-  TargetSampleType res;
-  // res[0] = m_MapOfIndices.at(argmin);
+  if (quality != NULL)
+  {
+    if (!this->HasConfidenceIndex())
+    {
+      itkExceptionMacro("Confidence index not available for this classifier !");
+    }
+  }
 
-  return res;
+  if (m_SelectedVar.empty())
+  {
+    return Superclass::Predict(rawInput, quality);
+  }
+  else
+  {
+    // Convert input data
+    VectorType input(Superclass::m_FeatNb);
+    VectorType subInput(m_SelectedVar.size());
+    vnl_copy(vnl_vector<InputValueType>(rawInput.GetDataPointer(), Superclass::m_FeatNb),input);
+
+    for (int i = 0; i < m_SelectedVar.size(); ++i)
+      subInput[i] = input[m_SelectedVar[i]];
+
+    // Compute decision function
+    std::vector<RealType> decisionFct(Superclass::m_CstDecision);
+    VectorType lambdaQInputC(m_SelectedVar.size());
+    VectorType input_c(m_SelectedVar.size());
+    for (int i = 0; i < Superclass::m_ClassNb; ++i)
+    {
+      input_c = subInput - m_SubMeans[i];
+      lambdaQInputC = Superclass::m_LambdaQ[i] * input_c;
+
+      // Add sum of squared elements
+      decisionFct[i] += lambdaQInputC.squared_magnitude();
+    }
+
+    int argmin = std::distance(decisionFct.begin(), std::min_element(decisionFct.begin(), decisionFct.end()));
+
+    TargetSampleType res;
+    res[0] = Superclass::m_MapOfIndices.at(argmin);
+
+    return res;
+  }
 }
 
 template <class TInputValue, class TTargetValue>

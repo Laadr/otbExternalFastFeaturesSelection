@@ -86,8 +86,8 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 ::Train()
 {
   // Get pointer to samples and labels
-  typename InputListSampleType::Pointer samples = this->GetInputListSample();
-  typename TargetListSampleType::Pointer labels = this->GetTargetListSample();
+  typename InputListSampleType::Pointer samples = Superclass::GetInputListSample();
+  typename TargetListSampleType::Pointer labels = Superclass::GetTargetListSample();
 
   // Declare iterator for samples and labels
   typename TargetListSampleType::ConstIterator refIterator  = labels->Begin();
@@ -178,7 +178,7 @@ template <class TInputValue, class TOutputValue>
 typename GMMMachineLearningModel<TInputValue,TOutputValue>
 ::TargetSampleType
 GMMMachineLearningModel<TInputValue,TOutputValue>
-::Predict(const InputSampleType & input, ConfidenceValueType *quality) const
+::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
   if (quality != NULL)
   {
@@ -188,14 +188,17 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
     }
   }
 
-  VectorType input_c(m_FeatNb);
+  // Convert input data
+  VectorType input(m_FeatNb);
+  vnl_copy(vnl_vector<InputValueType>(rawInput.GetDataPointer(), m_FeatNb),input);
+
   // Compute decision function
   std::vector<RealType> decisionFct(m_CstDecision);
-  VectorType lambdaQInputC;
+  VectorType lambdaQInputC(m_FeatNb);
+  VectorType input_c(m_FeatNb);
   for (int i = 0; i < m_ClassNb; ++i)
   {
-    vnl_copy(vnl_vector<InputValueType>(input.GetDataPointer(), m_FeatNb),input_c);
-    input_c -= m_Means[i];
+    input_c = input - m_Means[i];
     lambdaQInputC = m_LambdaQ[i] * input_c;
 
     // Add sum of squared elements

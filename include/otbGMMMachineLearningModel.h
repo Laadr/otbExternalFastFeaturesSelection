@@ -110,7 +110,7 @@ protected:
   /** Vector containing the proportion of samples in each class */
   std::vector<double> m_Proportion;
 
-  /** Matrix (Cxd) containing the mean vector of each class */
+  /** Vector of size C containing the mean vector (size d) of each class */
   std::vector<VectorType> m_Means;
 
   /** Vector of covariance matrix (dxd) of each class */
