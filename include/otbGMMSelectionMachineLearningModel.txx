@@ -13,6 +13,8 @@
 #include "itkSubsample.h"
 #include "itkSymmetricEigenAnalysis.h"
 #include "otbGMMMachineLearningModel.h"
+#include "otbConfusionMatrixCalculator.h"
+#include "vnl/vnl_trace.h"
 
 namespace otb
 {
@@ -80,7 +82,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
   m_Fold.push_back( ClassSampleType::New() );
   m_Fold[m_Fold.size()-1]->SetSample( samples );
-  for (int i = 0; i < end-start; ++i)
+  for (int i = start; i < end; ++i)
     m_Fold[m_Fold.size()-1]->AddInstance( input[i] );
 }
 
@@ -122,12 +124,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
     {
       // Shuffle id of samples
-      std::srand( unsigned( std::time(0) ) );
+      // std::srand( unsigned( std::time(0) ) );
+      std::srand( unsigned( 0 ) );
       std::vector<InstanceIdentifier> indices;
       for (unsigned j=0; j<Superclass::m_NbSpl[i]; ++j)
         indices.push_back((Superclass::m_ClassSamples[i])->GetInstanceIdentifier(j));
 
-      std::random_shuffle( indices.begin(), indices.end() );
+      // std::random_shuffle( indices.begin(), indices.end() );
 
       unsigned nbSplFold = Superclass::m_NbSpl[i]/nfold; // to verify
 
@@ -135,9 +138,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       {
         // Add subpart of id to fold
         if (j==nfold-1)
-          m_SubmodelCv[j]->AddInstanceToFold(Superclass::GetInputListSample(), indices,j*nbSplFold,Superclass::m_NbSpl[i]+1);
+        {
+          m_SubmodelCv[j]->AddInstanceToFold(Superclass::GetInputListSample(), indices,j*nbSplFold,Superclass::m_NbSpl[i]);
+          m_SubmodelCv[j]->AddNbSpl(Superclass::m_NbSpl[i] - j*nbSplFold);
+        }
         else
+        {
           m_SubmodelCv[j]->AddInstanceToFold(Superclass::GetInputListSample(), indices,j*nbSplFold,(j+1)*nbSplFold);
+          m_SubmodelCv[j]->AddNbSpl(nbSplFold);
+        }
 
         // Update model for each fold
         m_SubmodelCv[j]->SetMapOfClasses(Superclass::m_MapOfClasses);
@@ -145,13 +154,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         m_SubmodelCv[j]->SetClassNb(Superclass::m_ClassNb);
         m_SubmodelCv[j]->SetFeatNb(Superclass::m_FeatNb);
 
+
         covarianceEstimator->SetInput( m_SubmodelCv[j]->GetClassSamples(i) );
         covarianceEstimator->Update();
 
         covarianceFold = covarianceEstimator->GetCovarianceMatrix().GetVnlMatrix();
         meanFold       = VectorType(covarianceEstimator->GetMean().GetDataPointer(),Superclass::m_FeatNb);
 
-        m_SubmodelCv[j]->AddNbSpl(nbSplFold);
         m_SubmodelCv[j]->AddMean( (1/((RealType) Superclass::m_NbSpl[i] - (RealType) nbSplFold)) * ((RealType) Superclass::m_NbSpl[i] * Superclass::m_Means[i] - (RealType) nbSplFold * meanFold) );
         adjustedMean = MatrixType((Superclass::m_Means[i]-meanFold).data_block(), Superclass::m_FeatNb, 1);
         m_SubmodelCv[j]->AddCovMatrix( (1/((RealType)Superclass::m_NbSpl[i]-(RealType)nbSplFold-1)) * ( ((RealType)Superclass::m_NbSpl[i]-1)*Superclass::m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)Superclass::m_NbSpl[i]*(RealType)nbSplFold/((RealType)Superclass::m_NbSpl[i]-(RealType)nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType - ok?
@@ -229,7 +238,12 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     // Compute criterion function
     if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
     {
-      ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
+      for (int i = 0; i < m_SubmodelCv.size(); ++i)
+        m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
+
+      // Compute mean instead of keeping sum of criterion for all folds (not necessary)
+      for (int i = 0; i < criterionVal.size(); ++i)
+        criterionVal[i] /= m_SubmodelCv.size();
     }
     else if (criterion.compare("JM") == 0)
     {
@@ -244,16 +258,23 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
     criterionBestValues.push_back(criterionVal[argMaxValue]);
 
-    std::cout << "Criterion best values:";
-    for (typename std::vector<RealType>::iterator it = criterionBestValues.begin(); it != criterionBestValues.end(); ++it)
-    {
-      std::cout << ' ' << *it;
-    }
-    std::cout << std::endl;
+    // std::cout << "Criterion best values:";
+    // for (typename std::vector<RealType>::iterator it = criterionBestValues.begin(); it != criterionBestValues.end(); ++it)
+    // {
+    //   std::cout << ' ' << *it;
+    // }
+    // std::cout << std::endl;
 
     // Add it to selected var and delete it from the pool
     m_SelectedVar.push_back(variablesPool[argMaxValue]);
     variablesPool.erase(variablesPool.begin()+argMaxValue);
+
+    // Update submodel
+    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+    {
+      for (int i = 0; i < m_SubmodelCv.size(); ++i)
+        m_SubmodelCv[i]->SetSelectedVar(m_SelectedVar,0);
+    }
 
     currentSelectedVarNb++;
   }
@@ -272,7 +293,189 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::string criterion)
 {
+  typedef otb::ConfusionMatrixCalculator< TargetListSampleType, TargetListSampleType > ConfusionMatrixType;
 
+  if (m_SelectedVar.empty())
+  {
+    InputSampleType sample;
+    TargetSampleType res;
+    std::vector<RealType> scores(Superclass::m_ClassNb);
+
+    for (int k = 0; k < variablesPool.size(); ++k)
+    {
+      typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
+      typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
+      typename ConfusionMatrixType::Pointer confM = ConfusionMatrixType::New();
+
+      for (int i = 0; i < m_Fold.size(); ++i)
+      {
+        for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
+        {
+          sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
+
+          for (int c = 0; c < Superclass::m_ClassNb; ++c)
+            scores[c] = (sample[k] - Superclass::m_Means[c][k])*(sample[k] - Superclass::m_Means[c][k]) / Superclass::m_Covariances[c](k,k) + log(Superclass::m_Covariances[c](k,k)) - m_Logprop[c];
+
+          res[0] = Superclass::m_MapOfIndices.at(std::distance(scores.begin(), std::min_element(scores.begin(), scores.end())));
+          TargetListSample->PushBack(res);
+          res[0] = Superclass::m_MapOfIndices.at(i);
+          RefTargetListSample->PushBack(res);
+        }
+      }
+
+      confM->SetReferenceLabels(RefTargetListSample);
+      confM->SetProducedLabels(TargetListSample);
+      confM->Compute();
+
+      if (criterion.compare("accuracy") == 0)
+      {
+        criterionVal[k] += (RealType) confM->GetOverallAccuracy();
+      }
+      else if (criterion.compare("kappa") == 0)
+      {
+        criterionVal[k] += (RealType) confM->GetKappaIndex();
+      }
+      else if (criterion.compare("F1mean") == 0)
+      {
+        typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
+        RealType meanFscores = 0;
+        for (int i = 0; i < Fscores.Size(); ++i)
+          meanFscores += (RealType) Fscores[i];
+        criterionVal[k] += meanFscores/Superclass::m_ClassNb;
+      }
+    }
+  }
+  else
+  {
+    // Get info
+    int selectedVarNb = m_SelectedVar.size();
+
+    // Allocation
+    MatrixType subCovariances(selectedVarNb,selectedVarNb);
+    MatrixType Q(selectedVarNb,selectedVarNb);
+    std::vector<MatrixType> invCov(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
+    std::vector<MatrixType> subMeans(Superclass::m_ClassNb,MatrixType(selectedVarNb,1));
+    VectorType eigenValues(selectedVarNb);
+    std::vector<RealType> logdet(Superclass::m_ClassNb);
+
+    // Compute inv of covariance matrix
+    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+    {
+      ExtractVectorToColMatrix(m_SelectedVar, Superclass::m_Means[c], subMeans[c]);
+      ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],subCovariances);
+      Superclass::Decomposition(subCovariances, Q, eigenValues);
+
+      invCov[c] = Q * (vnl_diag_matrix<RealType>(eigenValues).invert_in_place() * Q.transpose());
+      logdet[c] = eigenValues.apply(log).sum();
+    }
+
+    InputSampleType sample;
+    TargetSampleType res;
+    std::vector<RealType> scores(Superclass::m_ClassNb);
+    std::vector<RealType> alpha(Superclass::m_ClassNb);
+    std::vector<RealType> logdet_update(Superclass::m_ClassNb);
+    std::vector<MatrixType> v(Superclass::m_ClassNb,MatrixType(selectedVarNb,1));
+    MatrixType u(selectedVarNb,1);
+    VectorType input(Superclass::m_FeatNb);
+    MatrixType subInput(selectedVarNb,1);
+
+    for (int k = 0; k < variablesPool.size(); ++k)
+    {
+      typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
+      typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
+      typename ConfusionMatrixType::Pointer confM = ConfusionMatrixType::New();
+
+      if (direction.compare("forward")==0)
+      {
+        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        {
+          ExtractReducedColumn(variablesPool[k],m_SelectedVar,Superclass::m_Covariances[c],u);
+          alpha[c] = Superclass::m_Covariances[c](variablesPool[k],variablesPool[k]) - (u.transpose() * invCov[c] *u)(0,0);
+          if (alpha[c] < std::numeric_limits<RealType>::epsilon())
+            alpha[c] = std::numeric_limits<RealType>::epsilon();
+
+          logdet_update[c] = log(alpha[c]) + logdet[c];
+          v[c] = -1/alpha[c] * (invCov[c]*u);
+        }
+
+        for (int i = 0; i < m_Fold.size(); ++i)
+        {
+          for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
+          {
+            sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
+
+            // Convert input data
+            vnl_copy(vnl_vector<InputValueType>(sample.GetDataPointer(), Superclass::m_FeatNb),input);
+            for (int n = 0; n < selectedVarNb; ++n)
+              subInput(n,0) = input[m_SelectedVar[n]];
+
+            for (int c = 0; c < Superclass::m_ClassNb; ++c)
+              scores[c] =  ((subInput.transpose() - subMeans[c])*invCov[c]*(subInput - subMeans[c]))(0,0) + alpha[c]*pow(((subInput - subMeans[c])*v[c])(0,0) + 1/alpha[c] * (input[variablesPool[k]] - Superclass::m_Means[c][variablesPool[k]]),2) + logdet_update[c] - m_Logprop[c];
+
+            res[0] = Superclass::m_MapOfIndices.at(std::distance(scores.begin(), std::min_element(scores.begin(), scores.end())));
+            TargetListSample->PushBack(res);
+            res[0] = Superclass::m_MapOfIndices.at(i);
+            RefTargetListSample->PushBack(res);
+          }
+        }
+      }
+      else if (direction.compare("backward")==0)
+      {
+        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        {
+          alpha[c] = 1/invCov[c](k,k);
+          if (alpha[c] < std::numeric_limits<RealType>::epsilon())
+            alpha[c] = std::numeric_limits<RealType>::epsilon();
+
+          logdet_update[c] = logdet[c] - log(alpha[c]);
+          v[c] = invCov[c].get_n_columns(k,1);
+        }
+
+        for (int i = 0; i < m_Fold.size(); ++i)
+        {
+          for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
+          {
+            sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
+
+            // Convert input data
+            vnl_copy(vnl_vector<InputValueType>(sample.GetDataPointer(), Superclass::m_FeatNb),input);
+            for (int n = 0; n < selectedVarNb; ++n)
+              subInput(n,1) = input[m_SelectedVar[n]];
+
+            std::vector<RealType> scores(Superclass::m_ClassNb);
+            for (int c = 0; c < Superclass::m_ClassNb; ++c)
+              scores[c] =  ((subInput.transpose() - subMeans[c])*invCov[c]*(subInput - subMeans[c]))(0,0)  - alpha[c]*pow((v[c].transpose()*(subInput - subMeans[c]))(0,0),2) + logdet_update[c] - m_Logprop[c];
+
+            res[0] = Superclass::m_MapOfIndices.at(std::distance(scores.begin(), std::min_element(scores.begin(), scores.end())));
+            TargetListSample->PushBack(res);
+            res[0] = Superclass::m_MapOfIndices.at(i);
+            RefTargetListSample->PushBack(res);
+          }
+        }
+      }
+
+      confM->SetReferenceLabels(RefTargetListSample);
+      confM->SetProducedLabels(TargetListSample);
+      confM->Compute();
+
+      if (criterion.compare("accuracy") == 0)
+      {
+        criterionVal[k] += (RealType) confM->GetOverallAccuracy();
+      }
+      else if (criterion.compare("kappa") == 0)
+      {
+        criterionVal[k] += (RealType) confM->GetKappaIndex();
+      }
+      else if (criterion.compare("F1mean") == 0)
+      {
+        typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
+        RealType meanFscores = 0;
+        for (int i = 0; i < Fscores.Size(); ++i)
+          meanFscores += (RealType) Fscores[i];
+        criterionVal[k] += meanFscores/Superclass::m_ClassNb;
+      }
+    }
+  }
 }
 
 template <class TInputValue, class TTargetValue>
@@ -413,9 +616,128 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ComputeDivKL(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool)
+::ComputeDivKL(std::vector<RealType> & divKL, const std::string direction, std::vector<int> & variablesPool)
 {
+  // Get info
+  int selectedVarNb = m_SelectedVar.size();
 
+
+  if (m_SelectedVar.empty())
+  {
+    RealType alpha1,alpha2;
+
+    for (int k = 0; k < variablesPool.size(); ++k)
+    {
+      for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+      {
+        alpha1 = 1/Superclass::m_Covariances[c1](variablesPool[k],variablesPool[k]);
+        if (alpha1 < std::numeric_limits<RealType>::epsilon())
+          alpha1 = std::numeric_limits<RealType>::epsilon();
+
+        for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+        {
+          alpha2 = 1/Superclass::m_Covariances[c2](variablesPool[k],variablesPool[k]);
+          if (alpha2 < std::numeric_limits<RealType>::epsilon())
+            alpha2 = std::numeric_limits<RealType>::epsilon();
+
+          divKL[k] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * 0.5 * (alpha1*Superclass::m_Covariances[c2](variablesPool[k],variablesPool[k]) + alpha2*Superclass::m_Covariances[c1](variablesPool[k],variablesPool[k]) + (Superclass::m_Means[c1](variablesPool[k]) - Superclass::m_Means[c2](variablesPool[k]))*(alpha1+alpha2)*(Superclass::m_Means[c1](variablesPool[k]) - Superclass::m_Means[c2](variablesPool[k])));
+        }
+      }
+    }
+  }
+  else
+  {
+    // Allocation
+    MatrixType reducedCovariances(selectedVarNb,selectedVarNb);
+    MatrixType Q(selectedVarNb,selectedVarNb);
+    VectorType eigenValues(selectedVarNb);
+    std::vector<MatrixType> invCov(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
+    int newVarNb;
+
+    if (direction.compare("forward")==0)
+      newVarNb = selectedVarNb + 1;
+    else if (direction.compare("backward")==0)
+      newVarNb = selectedVarNb - 1;
+    std::vector<MatrixType> invCov_update(Superclass::m_ClassNb,MatrixType(newVarNb,newVarNb));
+
+    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+    {
+      ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],reducedCovariances);
+      Superclass::Decomposition(reducedCovariances, Q, eigenValues);
+      invCov[c] = Q * (vnl_diag_matrix<RealType>(eigenValues).invert_in_place() * Q.transpose());
+    }
+
+    RealType alpha;
+    MatrixType tmp(selectedVarNb,selectedVarNb);
+    MatrixType subMatrix(selectedVarNb-1,selectedVarNb-1);
+    std::vector<MatrixType> subMeans(Superclass::m_ClassNb,MatrixType(newVarNb,1));
+    MatrixType u(selectedVarNb,1);
+    MatrixType md(newVarNb,1);
+    std::vector<int> newSelectedVar(newVarNb);
+    for (int k = 0; k < variablesPool.size(); ++k)
+    {
+      if (direction.compare("forward")==0)
+      {
+        std::vector<int>::iterator varIt = m_SelectedVar.begin();
+        for (int i = 0; i < selectedVarNb; ++i)
+        {
+          newSelectedVar[i] = *varIt;
+          varIt++;
+        }
+        newSelectedVar[newVarNb-1] = variablesPool[k];
+
+        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        {
+          ExtractReducedColumn(variablesPool[k],m_SelectedVar,Superclass::m_Covariances[c],u);
+          tmp = invCov[c]*u;
+
+          alpha = Superclass::m_Covariances[c](variablesPool[k],variablesPool[k]) - (u.transpose()*tmp)(0,0);
+          if (alpha < std::numeric_limits<RealType>::epsilon())
+            alpha = std::numeric_limits<RealType>::epsilon();
+
+          invCov_update[c].update(invCov[c] + (1/alpha) * tmp*tmp.transpose(),0,0);
+          invCov_update[c].update(-(1/alpha) * tmp,0,newVarNb-1);
+          invCov_update[c].update(-(1/alpha) * tmp.transpose(),newVarNb-1,0);
+          invCov_update[c](newVarNb-1,newVarNb-1) = 1/alpha;
+        }
+      }
+      else if (direction.compare("backward")==0)
+      {
+        std::vector<int>::iterator varIt = newSelectedVar.begin();
+        for (int i = 0; i < newVarNb; ++i)
+        {
+          if (i!=k)
+          {
+            *varIt = i;
+            varIt++;
+          }
+        }
+
+        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        {
+          ExtractSubSymmetricMatrix(newSelectedVar,Superclass::m_Covariances[c],subMatrix);
+          invCov_update[c] = subMatrix - 1/invCov[c](k,k) * subMatrix.get_n_columns(k,1) * subMatrix.get_n_rows(k,1);
+        }
+      }
+
+      // Extract means
+      std::vector<MatrixType> subCovariances(Superclass::m_ClassNb,MatrixType(newVarNb,newVarNb));
+      for (int c = 0; c < Superclass::m_ClassNb; ++c)
+      {
+        ExtractVectorToColMatrix(newSelectedVar, Superclass::m_Means[c], subMeans[c]);
+        ExtractSubSymmetricMatrix(newSelectedVar,Superclass::m_Covariances[c],subCovariances[c]);
+      }
+
+      for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+      {
+        for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+        {
+          md       = subMeans[c1] - subMeans[c2];
+          divKL[k] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * 0.5 * ( vnl_trace(invCov_update[c2]*subCovariances[c1] + invCov_update[c1]*subCovariances[c2]) + (md.transpose()*(invCov_update[c1]+invCov_update[c2])*md)(0,0) );
+        }
+      }
+    }
+  }
 }
 
 /** Train the machine learning model */
@@ -502,6 +824,56 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
   return m_SelectedVar;
 }
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::SetSelectedVar(std::vector<int> varSubSet, int recompute)
+{
+  m_SelectedVar = varSubSet;
+
+  if (recompute == 1)
+  {
+    int selectedVarNb = m_SelectedVar.size();
+
+    // Precomputation of terms use for prediction //
+    Superclass::m_Q.clear();
+    Superclass::m_EigenValues.clear();
+    Superclass::m_CstDecision.clear();
+    Superclass::m_LambdaQ.clear();
+    Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
+    Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(selectedVarNb));
+    MatrixType subCovariance(selectedVarNb,selectedVarNb);
+
+    Superclass::m_CstDecision.resize(Superclass::m_ClassNb,0);
+    Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(selectedVarNb,selectedVarNb));
+    m_SubMeans.resize(Superclass::m_ClassNb, VectorType(selectedVarNb));
+
+    RealType lambda;
+    for ( unsigned int i = 0; i < Superclass::m_ClassNb; ++i )
+    {
+      // Decompose covariance matrix in eigenvalues/eigenvectors
+      ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[i],subCovariance);
+      Superclass::Decomposition(subCovariance, Superclass::m_Q[i], Superclass::m_EigenValues[i]);
+
+      // Extract mean corresponding to slected variables
+      ExtractVector(m_SelectedVar,Superclass::m_Means[i],m_SubMeans[i]);
+
+      // Precompute lambda^(-1/2) * Q and log(det lambda)
+      for (int j = 0; j < selectedVarNb; ++j)
+      {
+        lambda = 1 / sqrt(Superclass::m_EigenValues[i][j]);
+        // Transposition and row multiplication at the same time
+        Superclass::m_LambdaQ[i].set_row(j,lambda*Superclass::m_Q[i].get_column(j));
+
+        Superclass::m_CstDecision[i] += log(Superclass::m_EigenValues[i][j]);
+      }
+
+      Superclass::m_CstDecision[i] += -2*log(Superclass::m_Proportion[i]);
+    }
+  }
+}
+
 
 } //end namespace otb
 

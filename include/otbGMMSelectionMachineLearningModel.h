@@ -46,6 +46,7 @@ public:
   itkTypeMacro(GMMSelectionMachineLearningModel, GMMMachineLearningModel);
 
   std::vector<int> GetSelectedVar();
+  void SetSelectedVar(std::vector<int> varSubSet, int recompute=1);
 
   void ExtractVector(const std::vector<int> & indexes, const VectorType& input, VectorType& ouput);
   void ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput);
