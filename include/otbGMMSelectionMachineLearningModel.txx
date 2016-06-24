@@ -285,7 +285,115 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::FloatingForwardSelection(std::string criterion, int selectedVarNb)
 {
+  // Initialization
+  int currentSelectedVarNb = 0;
+  RealType argMaxValue;
+  std::vector<RealType> criterionBestValues;
+  std::vector<int> variablesPool;
+  variablesPool.resize(Superclass::m_FeatNb);
+  m_SelectedVar.clear();
+  for (int i = 0; i < Superclass::m_FeatNb; ++i)
+    variablesPool[i] = i;
 
+  std::vector<std::vector<int> > bestSets;
+  std::vector<std::vector<int> > bestSetsPools;
+  bool flagBacktrack;
+
+  // Start the forward search
+  while ((currentSelectedVarNb<selectedVarNb)&&(!variablesPool.empty()))
+  {
+    std::vector<RealType> criterionVal(variablesPool.size(),0);
+
+    // Compute criterion function
+    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+    {
+      for (int i = 0; i < m_SubmodelCv.size(); ++i)
+        m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
+
+      // Compute mean instead of keeping sum of criterion for all folds (not necessary)
+      for (int i = 0; i < criterionVal.size(); ++i)
+        criterionVal[i] /= m_SubmodelCv.size();
+    }
+    else if (criterion.compare("JM") == 0)
+      ComputeJM(criterionVal,"forward",variablesPool);
+    else if (criterion.compare("divKL") == 0)
+      ComputeDivKL(criterionVal,"forward",variablesPool);
+
+    // Select the variable that provides the highest criterion value
+    argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
+    currentSelectedVarNb++;
+
+    if ((currentSelectedVarNb <= criterionBestValues.size()) && (criterionVal[argMaxValue] < criterionBestValues[currentSelectedVarNb-1]))
+    {
+      m_SelectedVar = bestSets[currentSelectedVarNb-1];
+      variablesPool = bestSetsPools[currentSelectedVarNb-1];
+    }
+    else
+    {
+      // Add it to selected var and delete it from the pool
+      m_SelectedVar.push_back(variablesPool[argMaxValue]);
+      variablesPool.erase(variablesPool.begin()+argMaxValue);
+
+      // Update submodel
+      if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+      {
+        for (int i = 0; i < m_SubmodelCv.size(); ++i)
+          m_SubmodelCv[i]->SetSelectedVar(m_SelectedVar,0);
+      }
+
+      if (currentSelectedVarNb > criterionBestValues.size())
+      {
+        criterionBestValues.push_back(criterionVal[argMaxValue]);
+        bestSets.push_back(m_SelectedVar);
+        bestSetsPools.push_back(variablesPool);
+      }
+      else
+      {
+        criterionBestValues[currentSelectedVarNb-1] = criterionVal[argMaxValue];
+        bestSets[currentSelectedVarNb-1] = m_SelectedVar;
+        bestSetsPools[currentSelectedVarNb-1] = variablesPool;
+      }
+
+      flagBacktrack = true;
+
+      while (flagBacktrack && (currentSelectedVarNb > 2))
+      {
+
+        std::vector<RealType> criterionValBackward(m_SelectedVar.size(),0);
+
+        // Compute criterion function
+        if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+        {
+          for (int i = 0; i < m_SubmodelCv.size(); ++i)
+            m_SubmodelCv[i]->ComputeClassifRate(criterionValBackward,"backward",m_SelectedVar,criterion);
+
+          // Compute mean instead of keeping sum of criterion for all folds (not necessary)
+          for (int i = 0; i < criterionValBackward.size(); ++i)
+            criterionValBackward[i] /= m_SubmodelCv.size();
+        }
+        else if (criterion.compare("JM") == 0)
+          ComputeJM(criterionValBackward,"backward",m_SelectedVar);
+        else if (criterion.compare("divKL") == 0)
+          ComputeDivKL(criterionValBackward,"backward",m_SelectedVar);
+
+        argMaxValue = std::distance(criterionValBackward.begin(), std::max_element(criterionValBackward.begin(), criterionValBackward.end()));
+
+        if (criterionValBackward[argMaxValue] > criterionBestValues[currentSelectedVarNb-2])
+        {
+          currentSelectedVarNb--;
+
+          variablesPool.push_back(m_SelectedVar[argMaxValue]);
+          m_SelectedVar.erase(m_SelectedVar.begin()+argMaxValue);
+
+          criterionBestValues[currentSelectedVarNb-1] = criterionValBackward[argMaxValue];
+          bestSets[currentSelectedVarNb-1] = m_SelectedVar;
+          bestSetsPools[currentSelectedVarNb-1] = variablesPool;
+        }
+        else
+          flagBacktrack = false;
+      }
+    }
+  }
 }
 
 template <class TInputValue, class TTargetValue>
@@ -440,7 +548,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             // Convert input data
             vnl_copy(vnl_vector<InputValueType>(sample.GetDataPointer(), Superclass::m_FeatNb),input);
             for (int n = 0; n < selectedVarNb; ++n)
-              subInput(n,1) = input[m_SelectedVar[n]];
+              subInput(n,0) = input[m_SelectedVar[n]];
 
             std::vector<RealType> scores(Superclass::m_ClassNb);
             for (int c = 0; c < Superclass::m_ClassNb; ++c)
@@ -573,7 +681,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         logdet = eigenValues.apply(log).sum();
 
         std::vector<int>::iterator varIt = variablesPool.begin();
-        for (int j = 0; j < variablesPool.size(); ++j)
+        for (int k = 0; k < variablesPool.size(); ++k)
         {
           if (direction.compare("forward")==0)
           {
@@ -595,18 +703,17 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
           }
           else if (direction.compare("backward")==0)
           {
-            alpha = 1/invCov(j,j);
+            alpha = 1/invCov(k,k);
             if (alpha < std::numeric_limits<RealType>::epsilon())
               alpha = std::numeric_limits<RealType>::epsilon();
 
             logdet_c1c2 = logdet - log(alpha) + (selectedVarNb-1)*log(2);
 
-            ExtractReducedColumn(j,m_SelectedVar,invCov,u);
-            cst_feat = - alpha * pow( (u.transpose()*md)(0,0), 2);
+            cst_feat = - alpha * pow( (invCov.get_n_rows(k,1)*md)(0,0), 2);
           }
 
-          bij = (1/8.) * (md.transpose() * (invCov*md))(0,0) + cst_feat/8 + 0.5*(logdet_c1c2 - halfedLogdet[c1][j] - halfedLogdet[c2][j]);
-          JM[j] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * sqrt(2*(1-exp(-bij)));
+          bij = (1/8.) * (md.transpose() * (invCov*md))(0,0) + cst_feat/8 + 0.5*(logdet_c1c2 - halfedLogdet[c1][k] - halfedLogdet[c2][k]);
+          JM[k] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * sqrt(2*(1-exp(-bij)));
         }
       }
     }
@@ -704,11 +811,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       else if (direction.compare("backward")==0)
       {
         std::vector<int>::iterator varIt = newSelectedVar.begin();
-        for (int i = 0; i < newVarNb; ++i)
+        for (int i = 0; i < selectedVarNb; ++i)
         {
           if (i!=k)
           {
-            *varIt = i;
+            *varIt = m_SelectedVar[i];
             varIt++;
           }
         }
@@ -716,7 +823,8 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         for (int c = 0; c < Superclass::m_ClassNb; ++c)
         {
           ExtractSubSymmetricMatrix(newSelectedVar,Superclass::m_Covariances[c],subMatrix);
-          invCov_update[c] = subMatrix - 1/invCov[c](k,k) * subMatrix.get_n_columns(k,1) * subMatrix.get_n_rows(k,1);
+          ExtractReducedColumn(variablesPool[k],newSelectedVar,Superclass::m_Covariances[c],u);
+          invCov_update[c] = subMatrix - 1/invCov[c](k,k) * u * u.transpose();
         }
       }
 
