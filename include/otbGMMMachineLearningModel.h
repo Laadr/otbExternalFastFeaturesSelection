@@ -42,6 +42,9 @@ public:
   /** Set m_tau and update m_lambdaQ and m_cstDecision */
   void SetTau(RealType tau);
 
+  /** Make a gridsearch with cross-validation to select the appropriate tau */
+  void TrainTau(std::vector<RealType> tauGrid, int nfold, const std::string & criterion="accuracy");
+
   /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
   void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, VectorType &eigenValues);
 
@@ -70,6 +73,7 @@ public:
   itkGetMacro(ClassNb, unsigned int);
   itkSetMacro(FeatNb, unsigned int);
   itkGetMacro(FeatNb, unsigned int);
+  itkGetMacro(Tau, RealType);
 
   void SetMapOfClasses(const std::map<TargetValueType, int>& mapOfClasses);
   void SetMapOfIndices(const std::map<int, TargetValueType>& mapOfIndices);
@@ -77,6 +81,8 @@ public:
   void AddMean(VectorType vector);
   void AddCovMatrix(MatrixType covMatrix);
   void AddNbSpl(unsigned long n);
+  void UpdateProportion();
+  void UpdateDecomposition();
 
 protected:
   /** Constructor */
@@ -128,6 +134,9 @@ protected:
   /** Create one subset of samples for each class */
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
   std::vector< typename ClassSampleType::Pointer > m_ClassSamples;
+
+  /** flag that tells if the model support confidence index output */
+  bool m_ConfidenceIndex;
 
 private:
   GMMMachineLearningModel(const Self &); //purposely not implemented

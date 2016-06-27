@@ -81,9 +81,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     m_Fold[m_Fold.size()-1]->AddInstance( input[i] );
 }
 
-template <class TInputValue, class TOutputValue>
+template <class TInputValue, class TTargetValue>
 void
-GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::UpdateProportion()
 {
   unsigned totalNb = 0;
@@ -396,7 +396,7 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::string criterion)
 {
-  typedef otb::ConfusionMatrixCalculator< TargetListSampleType, TargetListSampleType > ConfusionMatrixType;
+  typedef ConfusionMatrixCalculator< TargetListSampleType, TargetListSampleType > ConfusionMatrixType;
 
   if (m_SelectedVar.empty())
   {
@@ -844,19 +844,18 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 }
 
 /** Train the machine learning model */
-template <class TInputValue, class TOutputValue>
+template <class TInputValue, class TTargetValue>
 void
-GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::Train()
 {
   Superclass::Train();
 }
 
-
-template <class TInputValue, class TOutputValue>
-typename GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
+template <class TInputValue, class TTargetValue>
+typename GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
-GMMSelectionMachineLearningModel<TInputValue,TOutputValue>
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
   if (quality != NULL)
