@@ -6,15 +6,9 @@
 #include <math.h>
 #include <limits>
 #include <vector>
-#include "itkMacro.h"
-#include "itkSubsample.h"
-#include "otbGMMMachineLearningModel.h"
-#include "otbOpenCVUtils.h"
+
 #include "vnl/vnl_copy.h"
-#include "vnl/vnl_matrix.h"
-#include "vnl/vnl_vector.h"
 #include "vnl/algo/vnl_symmetric_eigensystem.h"
-#include "vnl/algo/vnl_generalized_eigensystem.h"
 
 namespace otb
 {
@@ -221,6 +215,9 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // create and open a character archive for output
   std::ofstream ofs(filename.c_str(), std::ios::out);
 
+  // Store header
+  ofs << "GMM model"<< std::endl;
+
   // Store single value data
   ofs << m_ClassNb << std::endl;
   ofs << m_FeatNb << std::endl;
@@ -301,6 +298,8 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   for (int i = 0; i < m_ClassNb; ++i)
     ofs << m_CstDecision[i] << " ";
   ofs << std::endl;
+
+  ofs.close();
 }
 
 template <class TInputValue, class TOutputValue>
@@ -310,8 +309,9 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
 {
   std::ifstream ifs(filename.c_str(), std::ios::in);
 
-  std::string test;
-  // ifs >> test;
+  std::string header;
+  // Store header
+  ifs >> header;
 
   // Load single value data
   ifs >> m_ClassNb;
@@ -378,6 +378,8 @@ GMMMachineLearningModel<TInputValue,TOutputValue>
   // Load vector of scalar (logdet cov - 2*log proportion)
   for (int i = 0; i < m_ClassNb; ++i)
     ifs >> m_CstDecision[i];
+
+  ifs.close();
 }
 
 template <class TInputValue, class TOutputValue>
@@ -385,27 +387,22 @@ bool
 GMMMachineLearningModel<TInputValue,TOutputValue>
 ::CanReadFile(const std::string & file)
 {
-  // std::ifstream ifs;
-  // ifs.open(file.c_str());
+    std::ifstream ifs(file.c_str(), std::ios::in);
 
-  // if(!ifs)
-  // {
-  //   std::cerr<<"Could not read file "<<file<<std::endl;
-  //   return false;
-  // }
+  if(!ifs)
+  {
+    std::cerr<<"Could not read file "<<file<<std::endl;
+    return false;
+  }
 
-  // while (!ifs.eof())
-  // {
-  //   std::string line;
-  //   std::getline(ifs, line);
+  std::string header;
+  // Store header
+  ifs >> header;
+  ifs.close();
 
-  //   if (line.find(CV_TYPE_NAME_ML_NBAYES) != std::string::npos)
-  //   {
-  //      //std::cout<<"Reading a "<<CV_TYPE_NAME_ML_NBAYES<<" model"<<std::endl;
-  //      return true;
-  //   }
-  // }
-  // ifs.close();
+  if (header.compare("GMM model"))
+    return true;
+
   return false;
 }
 

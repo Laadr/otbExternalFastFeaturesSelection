@@ -1,14 +1,11 @@
 #ifndef __otbGMMMachineLearningModel_h
 #define __otbGMMMachineLearningModel_h
 
-#include "itkMacro.h"
-#include "itkLightObject.h"
-#include "itkFixedArray.h"
-#include "itkArray.h"
-#include "otbMachineLearningModel.h"
-
+// #include "itkMacro.h"
+// #include "itkLightObject.h"
 #include "itkCovarianceSampleFilter.h"
-#include "itkSampleClassifierFilter.h"
+#include "itkSampleClassifierFilter.h" // for Subsample type
+#include "otbMachineLearningModel.h"
 
 namespace otb
 {

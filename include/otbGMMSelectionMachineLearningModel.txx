@@ -7,12 +7,7 @@
 #include <limits>
 #include <vector>
 #include <algorithm>
-#include <ctime>
-#include <cstdlib>
-#include "itkMacro.h"
-#include "itkSubsample.h"
-#include "itkSymmetricEigenAnalysis.h"
-#include "otbGMMMachineLearningModel.h"
+
 #include "otbConfusionMatrixCalculator.h"
 #include "vnl/vnl_trace.h"
 
