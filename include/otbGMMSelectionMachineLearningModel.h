@@ -2,11 +2,8 @@
 #define __otbGMMSelectionMachineLearningModel_h
 
 #include <string>
-#include "itkMacro.h"
-#include "itkLightObject.h"
-#include "itkFixedArray.h"
-#include "itkArray.h"
-#include "otbMachineLearningModel.h"
+// #include "itkMacro.h"
+// #include "itkLightObject.h"
 #include "otbGMMMachineLearningModel.h"
 
 #include "itkCovarianceSampleFilter.h"
