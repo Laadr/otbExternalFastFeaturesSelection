@@ -56,9 +56,15 @@ public:
   void ComputeJM         (std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool);
   void ComputeDivKL      (std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool);
 
-  void Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold);
+  void Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold, int seed=0);
   void ForwardSelection(std::string criterion, int selectedVarNb);
   void FloatingForwardSelection(std::string criterion, int selectedVarNb);
+
+  /** Save the model to file */
+  virtual void Save(const std::string & filename, const std::string & name="");
+
+  /** Load the model from file */
+  virtual void Load(const std::string & filename, const std::string & name="");
 
   /** Train the machine learning model */
   virtual void Train();
@@ -80,6 +86,9 @@ protected:
 
   /** Vector of selected variables */
   std::vector<int> m_SelectedVar;
+
+  /** Vector of criterion function values for each step of selection */
+  std::vector<RealType> m_CriterionBestValues;
 
   /** Vector of size C containing the mean vector of each class for the selected variables */
   std::vector<VectorType> m_SubMeans;

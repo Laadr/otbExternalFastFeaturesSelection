@@ -67,7 +67,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMMachineLearningModel<TInputValue,TTargetValue>
-::TrainTau(std::vector<RealType> tauGrid, int nfold, const std::string & criterion)
+::TrainTau(std::vector<RealType> tauGrid, int nfold, const std::string & criterion, int seed)
 {
   // Creation of submodel for cross-validation
   typedef typename ClassSampleType::Pointer ClassSamplePointer;
@@ -86,13 +86,12 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
     // Shuffle id of samples
-    // std::srand( unsigned( std::time(0) ) );
-    std::srand( unsigned( 0 ) );
+    std::srand( unsigned( seed ) );
     std::vector<InstanceIdentifier> indices;
     for (unsigned j=0; j<m_NbSpl[i]; ++j)
       indices.push_back((m_ClassSamples[i])->GetInstanceIdentifier(j));
 
-    // std::random_shuffle( indices.begin(), indices.end() );
+    std::random_shuffle( indices.begin(), indices.end() );
 
     unsigned nbSplFold = m_NbSpl[i]/nfold;
 
@@ -407,12 +406,13 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   std::ofstream ofs(filename.c_str(), std::ios::out);
 
   // Store header
-  ofs << "GMM model"<< std::endl;
+  ofs << "GMMmodel"<< std::endl;
 
   // Store single value data
   ofs << m_ClassNb << std::endl;
   ofs << m_FeatNb << std::endl;
   ofs << m_Tau << std::endl;
+  ofs << m_EigenValues[0].size() << std::endl;
 
   // Store label mapping (only one way)
   typedef typename std::map<TargetValueType, int>::const_iterator MapIterator;
@@ -457,7 +457,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   // Store vector of eigenvalues vector (one by line)
   for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_FeatNb; ++j)
+    for (int j = 0; j < m_EigenValues[i].size(); ++j)
       ofs << m_EigenValues[i][j] << " ";
 
     ofs << std::endl;
@@ -466,9 +466,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   // Store vector of eigenvectors matrices (one by line)
   for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_FeatNb; ++j)
+    for (int j = 0; j < m_Q[i].rows(); ++j)
     {
-      for (int k = 0; k < m_FeatNb; ++k)
+      for (int k = 0; k < m_Q[i].cols(); ++k)
         ofs << m_Q[i](j,k) << " ";
     }
     ofs << std::endl;
@@ -477,9 +477,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   // Store vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
   for (int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_FeatNb; ++j)
+    for (int j = 0; j < m_LambdaQ[i].rows(); ++j)
     {
-      for (int k = 0; k < m_FeatNb; ++k)
+      for (int k = 0; k < m_LambdaQ[i].cols(); ++k)
         ofs << m_LambdaQ[i](j,k) << " ";
     }
     ofs << std::endl;
@@ -501,6 +501,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   std::ifstream ifs(filename.c_str(), std::ios::in);
 
   std::string header;
+  int decompVarNb;
   // Store header
   ifs >> header;
 
@@ -508,15 +509,16 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   ifs >> m_ClassNb;
   ifs >> m_FeatNb;
   ifs >> m_Tau;
+  ifs >> decompVarNb;
 
   // Allocation
   m_NbSpl.resize(m_ClassNb);
   m_Proportion.resize(m_ClassNb);
   m_Means.resize(m_ClassNb,VectorType(m_FeatNb));
   m_Covariances.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
-  m_EigenValues.resize(m_ClassNb,VectorType(m_FeatNb));
-  m_Q.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
-  m_LambdaQ.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
+  m_EigenValues.resize(m_ClassNb,VectorType(decompVarNb));
+  m_Q.resize(m_ClassNb,MatrixType(decompVarNb,decompVarNb));
+  m_LambdaQ.resize(m_ClassNb,MatrixType(decompVarNb,decompVarNb));
   m_CstDecision.resize(m_ClassNb);
 
   // Load label mapping (only one way)
@@ -551,19 +553,19 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Load vector of eigenvalues vector (one by line)
   for (int i = 0; i < m_ClassNb; ++i)
-    for (int j = 0; j < m_FeatNb; ++j)
+    for (int j = 0; j < decompVarNb; ++j)
       ifs >> m_EigenValues[i][j];
 
   // Load vector of eigenvectors matrices (one by line)
   for (int i = 0; i < m_ClassNb; ++i)
-    for (int j = 0; j < m_FeatNb; ++j)
-      for (int k = 0; k < m_FeatNb; ++k)
+    for (int j = 0; j < decompVarNb; ++j)
+      for (int k = 0; k < decompVarNb; ++k)
         ifs >> m_Q[i](j,k);
 
   // Load vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
   for (int i = 0; i < m_ClassNb; ++i)
-    for (int j = 0; j < m_FeatNb; ++j)
-      for (int k = 0; k < m_FeatNb; ++k)
+    for (int j = 0; j < decompVarNb; ++j)
+      for (int k = 0; k < decompVarNb; ++k)
         ifs >> m_LambdaQ[i](j,k);
 
   // Load vector of scalar (logdet cov - 2*log proportion)
@@ -613,7 +615,6 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   // Call superclass implementation
   Superclass::PrintSelf(os,indent);
 }
-
 
 template <class TInputValue, class TTargetValue>
 void

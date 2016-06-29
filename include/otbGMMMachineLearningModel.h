@@ -1,8 +1,8 @@
 #ifndef __otbGMMMachineLearningModel_h
 #define __otbGMMMachineLearningModel_h
 
-// #include "itkMacro.h"
-// #include "itkLightObject.h"
+#include "itkMacro.h"
+#include "itkLightObject.h"
 #include "itkCovarianceSampleFilter.h"
 #include "itkSampleClassifierFilter.h" // for Subsample type
 #include "otbMachineLearningModel.h"
@@ -43,7 +43,7 @@ public:
   void SetTau(RealType tau);
 
   /** Make a gridsearch with cross-validation to select the appropriate tau */
-  void TrainTau(std::vector<RealType> tauGrid, int nfold, const std::string & criterion="accuracy");
+  void TrainTau(std::vector<RealType> tauGrid, int nfold, const std::string & criterion="accuracy", int seed=0);
 
   /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
   void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, VectorType &eigenValues);

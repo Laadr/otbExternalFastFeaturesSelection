@@ -102,7 +102,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold)
+::Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold, int seed)
 {
 
   // Creation of submodel for cross-validation
@@ -119,13 +119,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
     {
       // Shuffle id of samples
-      // std::srand( unsigned( std::time(0) ) );
+      std::srand( unsigned( seed ) );
       std::srand( unsigned( 0 ) );
       std::vector<InstanceIdentifier> indices;
       for (unsigned j=0; j<Superclass::m_NbSpl[i]; ++j)
         indices.push_back((Superclass::m_ClassSamples[i])->GetInstanceIdentifier(j));
 
-      // std::random_shuffle( indices.begin(), indices.end() );
+      std::random_shuffle( indices.begin(), indices.end() );
 
       unsigned nbSplFold = Superclass::m_NbSpl[i]/nfold; // to verify
 
@@ -181,7 +181,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(selectedVarNb));
   MatrixType subCovariance(selectedVarNb,selectedVarNb);
 
-  Superclass::m_CstDecision.resize(Superclass::m_ClassNb,0);
+  Superclass::m_CstDecision.assign(Superclass::m_ClassNb,0);
   Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(selectedVarNb,selectedVarNb));
   m_SubMeans.resize(Superclass::m_ClassNb, VectorType(selectedVarNb));
 
@@ -217,9 +217,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Initialization
   int currentSelectedVarNb = 0;
   RealType argMaxValue;
-  std::vector<RealType> criterionBestValues;
   std::vector<int> variablesPool;
   variablesPool.resize(Superclass::m_FeatNb);
+  m_CriterionBestValues.resize(selectedVarNb);
   m_SelectedVar.clear();
   for (int i = 0; i < Superclass::m_FeatNb; ++i)
     variablesPool[i] = i;
@@ -251,7 +251,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Select the variable that provides the highest criterion value
     argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
-    criterionBestValues.push_back(criterionVal[argMaxValue]);
+    m_CriterionBestValues[currentSelectedVarNb] = criterionVal[argMaxValue];
 
     // std::cout << "Criterion best values:";
     // for (typename std::vector<RealType>::iterator it = criterionBestValues.begin(); it != criterionBestValues.end(); ++it)
@@ -283,9 +283,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Initialization
   int currentSelectedVarNb = 0;
   RealType argMaxValue;
-  std::vector<RealType> criterionBestValues;
   std::vector<int> variablesPool;
   variablesPool.resize(Superclass::m_FeatNb);
+  m_CriterionBestValues.clear();
   m_SelectedVar.clear();
   for (int i = 0; i < Superclass::m_FeatNb; ++i)
     variablesPool[i] = i;
@@ -318,7 +318,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
     currentSelectedVarNb++;
 
-    if ((currentSelectedVarNb <= criterionBestValues.size()) && (criterionVal[argMaxValue] < criterionBestValues[currentSelectedVarNb-1]))
+    if ((currentSelectedVarNb <= m_CriterionBestValues.size()) && (criterionVal[argMaxValue] < m_CriterionBestValues[currentSelectedVarNb-1]))
     {
       m_SelectedVar = bestSets[currentSelectedVarNb-1];
       variablesPool = bestSetsPools[currentSelectedVarNb-1];
@@ -336,15 +336,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
           m_SubmodelCv[i]->SetSelectedVar(m_SelectedVar,0);
       }
 
-      if (currentSelectedVarNb > criterionBestValues.size())
+      if (currentSelectedVarNb > m_CriterionBestValues.size())
       {
-        criterionBestValues.push_back(criterionVal[argMaxValue]);
+        m_CriterionBestValues.push_back(criterionVal[argMaxValue]);
         bestSets.push_back(m_SelectedVar);
         bestSetsPools.push_back(variablesPool);
       }
       else
       {
-        criterionBestValues[currentSelectedVarNb-1] = criterionVal[argMaxValue];
+        m_CriterionBestValues[currentSelectedVarNb-1] = criterionVal[argMaxValue];
         bestSets[currentSelectedVarNb-1] = m_SelectedVar;
         bestSetsPools[currentSelectedVarNb-1] = variablesPool;
       }
@@ -373,14 +373,14 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
         argMaxValue = std::distance(criterionValBackward.begin(), std::max_element(criterionValBackward.begin(), criterionValBackward.end()));
 
-        if (criterionValBackward[argMaxValue] > criterionBestValues[currentSelectedVarNb-2])
+        if (criterionValBackward[argMaxValue] > m_CriterionBestValues[currentSelectedVarNb-2])
         {
           currentSelectedVarNb--;
 
           variablesPool.push_back(m_SelectedVar[argMaxValue]);
           m_SelectedVar.erase(m_SelectedVar.begin()+argMaxValue);
 
-          criterionBestValues[currentSelectedVarNb-1] = criterionValBackward[argMaxValue];
+          m_CriterionBestValues[currentSelectedVarNb-1] = criterionValBackward[argMaxValue];
           bestSets[currentSelectedVarNb-1] = m_SelectedVar;
           bestSetsPools[currentSelectedVarNb-1] = variablesPool;
         }
@@ -976,6 +976,91 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::Save(const std::string & filename, const std::string & name)
+{
+  Superclass::Save(filename,name);
+
+  if (m_SelectedVar.size() != 0)
+  {
+    std::string selectionFilename = "selection_" + filename;
+    std::ofstream ofs(selectionFilename.c_str(), std::ios::out);
+
+    // Store number of selected variables
+    ofs << m_SelectedVar.size() << std::endl;
+
+    // Store length of subMean vectors
+    ofs << m_SubMeans[0].size() << std::endl;
+
+    // Store vector of selected features
+    for (int i = 0; i < m_SelectedVar.size(); ++i)
+      ofs << m_SelectedVar[i] << " ";
+    ofs << std::endl;
+
+    // Store vector of criterion functions values with the corresponding number of features used
+    for (int i = 0; i < m_SelectedVar.size(); ++i)
+      ofs << i+1 << " " << m_CriterionBestValues[i] << std::endl;
+
+    // Store vector of size C containing the mean vector of each class for the selected variables (one by line)
+    for (int i = 0; i < Superclass::m_ClassNb; ++i)
+    {
+      for (int j = 0; j < m_SubMeans[i].size(); ++j)
+        ofs << m_SubMeans[i][j] << " ";
+
+      ofs << std::endl;
+    }
+
+    ofs.close();
+  }
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::Load(const std::string & filename, const std::string & name)
+{
+  Superclass::Load(filename,name);
+
+  std::string selectionFilename = "selection_" + filename;
+  std::ifstream ifs(selectionFilename.c_str(), std::ios::in);
+
+  if(!ifs)
+  {
+    std::cerr<<"Could not found/read file "<<selectionFilename<<std::endl;
+  }
+  else
+  {
+    int selectedVarNb, subMeanSize, dump;
+    ifs >> selectedVarNb;
+    ifs >> subMeanSize;
+
+    // Allocation
+    m_SelectedVar.resize(selectedVarNb);
+    m_CriterionBestValues.resize(selectedVarNb);
+    m_Logprop.resize(Superclass::m_ClassNb);
+    m_SubMeans.resize(Superclass::m_ClassNb,VectorType(subMeanSize));
+
+    // Load selected variables
+    for (int i = 0; i < selectedVarNb; ++i)
+      ifs >> m_SelectedVar[i];
+
+    // Load criterion function values
+    for (int i = 0; i < selectedVarNb; ++i)
+    {
+      ifs >> dump;
+      ifs >> m_CriterionBestValues[i];
+    }
+
+    // Load subMean
+    for (int i = 0; i < Superclass::m_ClassNb; ++i)
+      for (int j = 0; j < subMeanSize; ++j)
+        ifs >> m_SubMeans[i][j];
+  }
+
+  ifs.close();
+}
 
 } //end namespace otb
 
