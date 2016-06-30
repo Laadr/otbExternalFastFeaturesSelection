@@ -192,7 +192,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     {
       scores[j] = (RealType) confM->GetKappaIndex();
     }
-    else if (criterion.compare("F1mean") == 0)
+    else if (criterion.compare("f1mean") == 0)
     {
       typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
       RealType meanFscores = 0;

@@ -106,7 +106,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
 
   // Creation of submodel for cross-validation
-  if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0))
+  if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0))
   {
     // Allocation
     for (int j = 0; j < nfold; ++j)
@@ -231,7 +231,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<RealType> criterionVal(variablesPool.size(),0);
 
     // Compute criterion function
-    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
       for (int i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
@@ -265,7 +265,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     variablesPool.erase(variablesPool.begin()+argMaxValue);
 
     // Update submodel
-    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
       for (int i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->SetSelectedVar(m_SelectedVar,0);
@@ -300,7 +300,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<RealType> criterionVal(variablesPool.size(),0);
 
     // Compute criterion function
-    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+    if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
       for (int i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
@@ -330,7 +330,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       variablesPool.erase(variablesPool.begin()+argMaxValue);
 
       // Update submodel
-      if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+      if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
       {
         for (int i = 0; i < m_SubmodelCv.size(); ++i)
           m_SubmodelCv[i]->SetSelectedVar(m_SelectedVar,0);
@@ -357,7 +357,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         std::vector<RealType> criterionValBackward(m_SelectedVar.size(),0);
 
         // Compute criterion function
-        if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("F1mean") == 0) )
+        if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
         {
           for (int i = 0; i < m_SubmodelCv.size(); ++i)
             m_SubmodelCv[i]->ComputeClassifRate(criterionValBackward,"backward",m_SelectedVar,criterion);
@@ -438,7 +438,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       {
         criterionVal[k] += (RealType) confM->GetKappaIndex();
       }
-      else if (criterion.compare("F1mean") == 0)
+      else if (criterion.compare("f1mean") == 0)
       {
         typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
         RealType meanFscores = 0;
@@ -569,7 +569,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       {
         criterionVal[k] += (RealType) confM->GetKappaIndex();
       }
-      else if (criterion.compare("F1mean") == 0)
+      else if (criterion.compare("f1mean") == 0)
       {
         typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
         RealType meanFscores = 0;

@@ -8,9 +8,31 @@ set(DOCUMENTATION "OTB external module for Fast Features Selection.")
 # define the dependencies of the include module and the tests
 otb_module(OTBFastFeaturesSelection
   DEPENDS
-    OTBCommon
-    OTBApplicationEngine
+    OTBVectorDataBase
+    OTBConversion
+    OTBStatistics
+    OTBColorMap
+    OTBBoost
+    OTBInterpolation
+    OTBMajorityVoting
+    OTBVectorDataIO
+    OTBSOM
     OTBSupervised
+    OTBApplicationEngine
+    OTBIndices
+    OTBMathParser
+    OTBITK
+    OTBDempsterShafer
+    OTBGdalAdapters
+    OTBProjection
+    OTBImageBase
+    OTBIOXML
+    OTBVectorDataManipulation
+    OTBStreaming
+    OTBImageManipulation
+    OTBObjectList
+    OTBCommon
+    OTBSampling
   TEST_DEPENDS
     OTBTestKernel
     OTBCommandLine
