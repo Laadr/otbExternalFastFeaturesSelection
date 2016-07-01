@@ -16,10 +16,10 @@ namespace otb
 
 template <class TInputValue, class TTargetValue>
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::GMMSelectionMachineLearningModel()
+::GMMSelectionMachineLearningModel():
+  m_EnableOptimalSet(true)
 {
 }
-
 
 template <class TInputValue, class TTargetValue>
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -171,32 +171,44 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   else if (direction.compare("sffs") == 0)
     FloatingForwardSelection(criterion, selectedVarNb);
 
+  std::vector<int> varPrediction;
+  if (m_EnableOptimalSet)
+  {
+    m_VarNbPrediction = 1 + std::distance(m_CriterionBestValues.begin(), std::max_element(m_CriterionBestValues.begin(), m_CriterionBestValues.end()));
+    for (int i = 0; i < m_VarNbPrediction; ++i)
+      varPrediction.push_back(m_SelectedVar[i]);
+  }
+  else
+  {
+    m_VarNbPrediction = selectedVarNb;
+    varPrediction     = m_SelectedVar;
+  }
 
   // Precomputation of terms use for prediction //
   Superclass::m_Q.clear();
   Superclass::m_EigenValues.clear();
   Superclass::m_CstDecision.clear();
   Superclass::m_LambdaQ.clear();
-  Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
-  Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(selectedVarNb));
-  MatrixType subCovariance(selectedVarNb,selectedVarNb);
+  Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(m_VarNbPrediction,m_VarNbPrediction));
+  Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
+  MatrixType subCovariance(m_VarNbPrediction,m_VarNbPrediction);
 
   Superclass::m_CstDecision.assign(Superclass::m_ClassNb,0);
-  Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(selectedVarNb,selectedVarNb));
-  m_SubMeans.resize(Superclass::m_ClassNb, VectorType(selectedVarNb));
+  Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(m_VarNbPrediction,m_VarNbPrediction));
+  m_SubMeans.resize(Superclass::m_ClassNb, VectorType(m_VarNbPrediction));
 
   RealType lambda;
   for ( unsigned int i = 0; i < Superclass::m_ClassNb; ++i )
   {
     // Decompose covariance matrix in eigenvalues/eigenvectors
-    ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[i],subCovariance);
+    ExtractSubSymmetricMatrix(varPrediction,Superclass::m_Covariances[i],subCovariance);
     Superclass::Decomposition(subCovariance, Superclass::m_Q[i], Superclass::m_EigenValues[i]);
 
     // Extract mean corresponding to slected variables
-    ExtractVector(m_SelectedVar,Superclass::m_Means[i],m_SubMeans[i]);
+    ExtractVector(varPrediction,Superclass::m_Means[i],m_SubMeans[i]);
 
     // Precompute lambda^(-1/2) * Q and log(det lambda)
-    for (int j = 0; j < selectedVarNb; ++j)
+    for (int j = 0; j < m_VarNbPrediction; ++j)
     {
       lambda = 1 / sqrt(Superclass::m_EigenValues[i][j]);
       // Transposition and row multiplication at the same time
@@ -874,16 +886,17 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   {
     // Convert input data
     VectorType input(Superclass::m_FeatNb);
-    VectorType subInput(m_SelectedVar.size());
+    VectorType subInput(m_VarNbPrediction);
     vnl_copy(vnl_vector<InputValueType>(rawInput.GetDataPointer(), Superclass::m_FeatNb),input);
 
-    for (int i = 0; i < m_SelectedVar.size(); ++i)
+    for (int i = 0; i < m_VarNbPrediction; ++i)
       subInput[i] = input[m_SelectedVar[i]];
 
+    std::cout << subInput.size()<<std::endl;;
     // Compute decision function
     std::vector<RealType> decisionFct(Superclass::m_CstDecision);
-    VectorType lambdaQInputC(m_SelectedVar.size());
-    VectorType input_c(m_SelectedVar.size());
+    VectorType lambdaQInputC(m_VarNbPrediction);
+    VectorType input_c(m_VarNbPrediction);
     for (int i = 0; i < Superclass::m_ClassNb; ++i)
     {
       input_c = subInput - m_SubMeans[i];
@@ -991,13 +1004,17 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     // Store number of selected variables
     ofs << m_SelectedVar.size() << std::endl;
 
-    // Store length of subMean vectors
-    ofs << m_SubMeans[0].size() << std::endl;
+    // Store number of selected features to use
+    ofs << m_VarNbPrediction << std::endl;
 
     // Store vector of selected features
     for (int i = 0; i < m_SelectedVar.size(); ++i)
       ofs << m_SelectedVar[i] << " ";
     ofs << std::endl;
+
+    // Set writing precision (need c++11 to not hardcode value of double precision)
+    // ofs.precision(std::numeric_limits<double>::max_digits10);
+    ofs.precision(17);
 
     // Store vector of criterion functions values with the corresponding number of features used
     for (int i = 0; i < m_SelectedVar.size(); ++i)
@@ -1032,15 +1049,17 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
   else
   {
-    int selectedVarNb, subMeanSize, dump;
+    int selectedVarNb, dump;
     ifs >> selectedVarNb;
-    ifs >> subMeanSize;
+
+    // Load number of selected features to use
+    ifs >> m_VarNbPrediction;
 
     // Allocation
     m_SelectedVar.resize(selectedVarNb);
     m_CriterionBestValues.resize(selectedVarNb);
     m_Logprop.resize(Superclass::m_ClassNb);
-    m_SubMeans.resize(Superclass::m_ClassNb,VectorType(subMeanSize));
+    m_SubMeans.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
 
     // Load selected variables
     for (int i = 0; i < selectedVarNb; ++i)
@@ -1055,7 +1074,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Load subMean
     for (int i = 0; i < Superclass::m_ClassNb; ++i)
-      for (int j = 0; j < subMeanSize; ++j)
+      for (int j = 0; j < m_VarNbPrediction; ++j)
         ifs >> m_SubMeans[i][j];
   }
 

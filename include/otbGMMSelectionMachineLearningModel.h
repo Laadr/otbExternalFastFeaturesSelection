@@ -84,6 +84,12 @@ protected:
   /** PrintSelf method */
   void PrintSelf(std::ostream& os, itk::Indent indent) const;
 
+  /** Option to optimal set of features after selection or full set of seleccted features */
+  bool m_EnableOptimalSet;
+
+  /** Number of selected var to take for prediction (beginning from the first) */
+  int m_VarNbPrediction;
+
   /** Vector of selected variables */
   std::vector<int> m_SelectedVar;
 
