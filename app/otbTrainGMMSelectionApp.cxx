@@ -2,6 +2,7 @@
 #include "otbWrapperApplicationFactory.h"
 
 #include "otbGMMMachineLearningModel.h"
+#include "otbGMMSelectionMachineLearningModel.h"
 
 #include "otbListSampleGenerator.h"
 // Validation
@@ -23,15 +24,15 @@ namespace otb
 namespace Wrapper
 {
 
-class TrainGMMApp : public Application
+class TrainGMMSelectionApp : public Application
 {
 public:
-  typedef TrainGMMApp Self;
+  typedef TrainGMMSelectionApp Self;
   typedef itk::SmartPointer<Self> Pointer;
 
   typedef float    InputValueType;
   typedef int      TargetValueType;
-  typedef GMMMachineLearningModel<InputValueType, TargetValueType> GMMType;
+  typedef GMMSelectionMachineLearningModel<InputValueType, TargetValueType> GMMType;
 
 
   typedef GMMType::InputSampleType         SampleType;
@@ -66,7 +67,7 @@ public:
   typedef VectorDataIntoImageProjectionFilter<VectorDataType, SampleImageType> VectorDataReprojectionType;
 
   itkNewMacro(Self);
-  itkTypeMacro(TrainGMMApp, Application);
+  itkTypeMacro(TrainGMMSelectionApp, Application);
 
 
 private:
@@ -75,7 +76,7 @@ private:
 
   void DoInit()
   {
-    SetName("TrainGMMApp");
+    SetName("TrainGMMSelectionApp");
     SetDescription("Train a GMM classifier from multiple pairs of images and training vector data.");
 
     // Documentation
@@ -87,11 +88,10 @@ private:
       "representing the class label. The name of this field can be set using the \"Class label field\" parameter. Training and validation "
       "sample lists are built such that each class is equally represented in both lists. One parameter allows controlling the ratio "
       "between the number of samples in training and validation sets. Two parameters allow managing the size of the training and "
-      "validation sets per class and per image.\n A Ridge regularization can be performed if a regularization parameter is furnished and "
-      "if a list of parameters is furnished a cross-validation method is used to select the best parameter. In the "
-      "validation process, the confusion matrix is organized the following way: rows = reference labels, columns = produced labels. "
+      "validation sets per class and per image.\n In addition, a features selection method is used during training to reduce dimensionality of the data.\n"
+      " In the validation process, the confusion matrix is organized the following way: rows = reference labels, columns = produced labels. "
       "In the header of the optional confusion matrix output file, the validation (reference) and predicted (produced) class labels"
-      " are ordered according to the rows/columns of the confusion matrix.\n This application is part of an external module developped by "
+      " are ordered according to the rows/columns of the confusion matrix.\n This application is part of an external module developed by "
       "Adrien Lagrange (ad.lagrange@gmail.com) and Mathieu Fauvel.");
     SetDocLimitations("None");
     SetDocAuthors("Adrien Lagrange");
@@ -116,6 +116,7 @@ private:
     AddParameter(ParameterType_OutputFilename, "io.out", "Output model");
     SetParameterDescription("io.out", "Output file containing the model estimated (.txt format).");
 
+
     //Group Sample list
     AddParameter(ParameterType_Group, "sample", "Training and validation samples parameters");
     SetParameterDescription("sample",
@@ -133,7 +134,6 @@ private:
     SetDefaultParameterInt("sample.bm", 1);
     SetParameterDescription("sample.bm", "Bound the number of samples for each class by the number of available samples by the smallest class. Proportions between training and validation are respected. Default is true (=1).");
 
-
     AddParameter(ParameterType_Empty, "sample.edg", "On edge pixel inclusion");
     SetParameterDescription("sample.edg",
                             "Takes pixels on polygon edge into consideration when building training and validation samples.");
@@ -148,25 +148,36 @@ private:
     SetParameterDescription("sample.vfn", "Name of the field used to discriminate class labels in the input vector data files.");
     SetParameterString("sample.vfn", "Class");
 
+
     //Group classifier parameters
     AddParameter(ParameterType_Group, "gmm", "Paramaters of GMM classifier.");
     SetParameterDescription("gmm", "This group of parameters allows to set the parameters of the GMM learning algorithm.");
 
-    //There is no ParameterType_IntList, so i use a ParameterType_StringList and convert it.
-    AddParameter(ParameterType_StringList, "gmm.tau", "Regularization parameters for gridsearch list");
-    SetParameterDescription("gmm.tau", "List of regularization parameters to test. If this parameter is not set, no regularization is performed and if there is only one proposed value, no gridsearch is performed.");
-    MandatoryOff("gmm.tau");
+    AddParameter(ParameterType_Int, "gmm.varnb", "Number of variables to select");
+    SetParameterDescription("gmm.varnb", "Number of variables to select with the selection algorithm. All selected are not necessarily used for prediction depending of gmm.best option. ");
+
+    AddParameter(ParameterType_Choice, "gmm.method", "Method used for selection");
+    AddChoice("gmm.method.forward", "Sequential forward selection");
+    AddChoice("gmm.method.sffs", "Sequential floating forward selection");
+    SetParameterString("gmm.method", "forward");
+    SetParameterDescription("gmm.method", "Method used for selection (default = forward). Two methods are possible the forward and the floating forward (forward/sffs).");
+
+    AddParameter(ParameterType_Choice, "gmm.crit", "Criterion function for selection");
+    AddChoice("gmm.crit.jm", "Jeffries-Matusita distance");
+    AddChoice("gmm.crit.divkl", "Kullback–Leibler divergence");
+    AddChoice("gmm.crit.accuracy", "Overall Accuracy");
+    AddChoice("gmm.crit.kappa", "Cohen's kappa");
+    AddChoice("gmm.crit.f1mean", "Mean of F1-scores");
+    SetParameterString("gmm.crit", "jm");
+    SetParameterDescription("gmm.crit", "Criterion function to use for features selection (default = jm). The five criterion functions available are Jeffries-Matusita distance, Kullback–Leibler divergence, overall accuracy, Cohen's kappa and mean of F1-scores (jm/divkl/accuracy/kappa/f1mean).");
 
     AddParameter(ParameterType_Int, "gmm.ncv", "Number of folds for cross-validation");
     SetDefaultParameterInt("gmm.ncv", 5);
-    SetParameterDescription("gmm.ncv", "Number of folds for cross-validation to estimate the classification rate when selecting the best regularization parameter (default = 5).");
+    SetParameterDescription("gmm.ncv", "Number of folds for cross-validation to estimate the classification rate when selecting variables (default = 5). It is ussed only with Jeffries-Matusita distance and Kullback–Leibler divergence.");
 
-    AddParameter(ParameterType_Choice, "gmm.metric", "Metric to use for tau selection");
-    AddChoice("gmm.metric.accuracy", "Overall Accuracy");
-    AddChoice("gmm.metric.kappa", "Cohen's kappa");
-    AddChoice("gmm.metric.f1mean", "Mean of F1-scores");
-    SetParameterString("gmm.metric", "kappa");
-    SetParameterDescription("gmm.metric", "Metric to use for tau selection (default = kappa). The three metrics available are overall accuracy, Cohen's kappa and mean of F1-scores (accuracy/kappa/F1mean).");
+    AddParameter(ParameterType_Empty, "gmm.best", "Enable choice optimal set of features after selection. If disable, all selected features are used");
+    SetDefaultParameterInt("gmm.best", true);
+    SetParameterDescription("gmm.best","Enable choice optimal set of features after selection (default). If disable, all selected features are used.");
 
     AddParameter(ParameterType_Int, "gmm.srand", "Rand seed for cross-validation");
     SetParameterInt("gmm.srand", 0);
@@ -181,9 +192,11 @@ private:
     SetDocExampleParameterValue("sample.vtr", "0.5");
     SetDocExampleParameterValue("sample.edg", "false");
     SetDocExampleParameterValue("sample.vfn", "Class");
-    SetDocExampleParameterValue("gmm.tau", "10 100 1000");
+    SetDocExampleParameterValue("gmm.varnb", "20");
+    SetDocExampleParameterValue("gmm.method", "forward");
+    SetDocExampleParameterValue("gmm.crit", "jm");
     SetDocExampleParameterValue("gmm.ncv", "5");
-    SetDocExampleParameterValue("gmm.metric", "kappa");
+    SetDocExampleParameterValue("gmm.best", "true");
     SetDocExampleParameterValue("gmm.srand", "0");
     SetDocExampleParameterValue("io.out", "svmModelQB1.txt");
     SetDocExampleParameterValue("io.confmatout", "svmConfusionMatrixQB1.csv");
@@ -420,29 +433,20 @@ private:
     GMMClassifier->SetInputListSample(trainingListSample);
     GMMClassifier->SetTargetListSample(trainingLabeledListSample);
 
+    // Setup fake reporter
+    RGBAPixelConverter<int,int>::Pointer dummyFilter = RGBAPixelConverter<int,int>::New();
+    dummyFilter->SetProgress(0.0f);
+    this->AddProcess(dummyFilter,"Train...");
+    dummyFilter->InvokeEvent(itk::StartEvent());
+
     GMMClassifier->Train();
 
-    if (IsParameterEnabled("gmm.tau"))
-    {
-      std::vector<std::string> tauGridString = GetParameterStringList("gmm.tau");
+    GMMClassifier->SetEnableOptimalSet(GetParameterEmpty("gmm.best"));
+    GMMClassifier->Selection(GetParameterString("gmm.method"),GetParameterString("gmm.crit"),GetParameterInt("gmm.varnb"),GetParameterInt("gmm.ncv"),GetParameterInt("gmm.srand"));
 
-      if (tauGridString.size() == 1)
-      {
-        GMMClassifier->SetTau(atoi(tauGridString[0].c_str()));
-      }
-      else
-      {
-        otbAppLogINFO("Performing selection of tau...");
-        std::vector<double> tauGrid(tauGridString.size());
-        for (unsigned i = 0; i < tauGridString.size(); ++i)
-        {
-          tauGrid[i] = atoi(tauGridString[i].c_str());
-        }
-        GMMClassifier->TrainTau(tauGrid,GetParameterInt("gmm.ncv"),GetParameterString("gmm.metric"),GetParameterInt("gmm.srand"));
-      }
-    }
-
-    otbAppLogINFO("Selected tau: " << GMMClassifier->GetTau());
+    // update reporter
+    dummyFilter->UpdateProgress(1.0f);
+    dummyFilter->InvokeEvent(itk::EndEvent());
 
     GMMClassifier->Save(GetParameterString("io.out"));
 
@@ -466,7 +470,6 @@ private:
     }
 
     // Setup fake reporter
-    RGBAPixelConverter<int,int>::Pointer dummyFilter = RGBAPixelConverter<int,int>::New();
     dummyFilter->SetProgress(0.0f);
     this->AddProcess(dummyFilter,"Classify...");
     dummyFilter->InvokeEvent(itk::StartEvent());
@@ -594,4 +597,4 @@ private:
 } // end namespace Wrapper
 } // end namespace otb
 
-OTB_APPLICATION_EXPORT(otb::Wrapper::TrainGMMApp)
+OTB_APPLICATION_EXPORT(otb::Wrapper::TrainGMMSelectionApp)

@@ -104,7 +104,6 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold, int seed)
 {
-
   // Creation of submodel for cross-validation
   if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0))
   {
@@ -252,11 +251,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       for (int i = 0; i < criterionVal.size(); ++i)
         criterionVal[i] /= m_SubmodelCv.size();
     }
-    else if (criterion.compare("JM") == 0)
+    else if (criterion.compare("jm") == 0)
     {
       ComputeJM(criterionVal,"forward",variablesPool);
     }
-    else if (criterion.compare("divKL") == 0)
+    else if (criterion.compare("divkl") == 0)
     {
       ComputeDivKL(criterionVal,"forward",variablesPool);
     }
@@ -321,9 +320,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       for (int i = 0; i < criterionVal.size(); ++i)
         criterionVal[i] /= m_SubmodelCv.size();
     }
-    else if (criterion.compare("JM") == 0)
+    else if (criterion.compare("jm") == 0)
       ComputeJM(criterionVal,"forward",variablesPool);
-    else if (criterion.compare("divKL") == 0)
+    else if (criterion.compare("divkl") == 0)
       ComputeDivKL(criterionVal,"forward",variablesPool);
 
     // Select the variable that provides the highest criterion value
@@ -378,9 +377,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
           for (int i = 0; i < criterionValBackward.size(); ++i)
             criterionValBackward[i] /= m_SubmodelCv.size();
         }
-        else if (criterion.compare("JM") == 0)
+        else if (criterion.compare("jm") == 0)
           ComputeJM(criterionValBackward,"backward",m_SelectedVar);
-        else if (criterion.compare("divKL") == 0)
+        else if (criterion.compare("divkl") == 0)
           ComputeDivKL(criterionValBackward,"backward",m_SelectedVar);
 
         argMaxValue = std::distance(criterionValBackward.begin(), std::max_element(criterionValBackward.begin(), criterionValBackward.end()));
@@ -557,7 +556,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             for (int n = 0; n < selectedVarNb; ++n)
               subInput(n,0) = input[m_SelectedVar[n]];
 
-            std::vector<RealType> scores(Superclass::m_ClassNb);
             for (int c = 0; c < Superclass::m_ClassNb; ++c)
               scores[c] =  ((subInput.transpose() - subMeans[c])*invCov[c]*(subInput - subMeans[c]))(0,0)  - alpha[c]*pow((v[c].transpose()*(subInput - subMeans[c]))(0,0),2) + logdet_update[c] - m_Logprop[c];
 
@@ -635,7 +633,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     MatrixType Q(selectedVarNb,selectedVarNb);
     MatrixType invCov(selectedVarNb,selectedVarNb);
     VectorType eigenValues(selectedVarNb);
-    RealType logdet, alpha;
+    RealType logdet, alpha=0;
     MatrixType u(selectedVarNb,1);
 
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
@@ -667,7 +665,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     }
 
     MatrixType cs(selectedVarNb,selectedVarNb);
-    RealType logdet_c1c2, cst_feat, bij;
+    RealType logdet_c1c2=0, cst_feat=0, bij;
     MatrixType md(selectedVarNb,1);
     MatrixType extractUTmp(selectedVarNb,1);
 
@@ -766,7 +764,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     MatrixType Q(selectedVarNb,selectedVarNb);
     VectorType eigenValues(selectedVarNb);
     std::vector<MatrixType> invCov(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
-    int newVarNb;
+    int newVarNb=0;
 
     if (direction.compare("forward")==0)
       newVarNb = selectedVarNb + 1;
@@ -892,7 +890,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     for (int i = 0; i < m_VarNbPrediction; ++i)
       subInput[i] = input[m_SelectedVar[i]];
 
-    std::cout << subInput.size()<<std::endl;;
     // Compute decision function
     std::vector<RealType> decisionFct(Superclass::m_CstDecision);
     VectorType lambdaQInputC(m_VarNbPrediction);
@@ -910,6 +907,19 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     TargetSampleType res;
     res[0] = Superclass::m_MapOfIndices.at(argmin);
+
+    // Compute confidence (optional)
+    if (quality != NULL)
+    {
+      if (!this->HasConfidenceIndex())
+      {
+        itkExceptionMacro("Confidence index not available for this classifier !");
+      }
+      else
+      {
+        *quality = (ConfidenceValueType) ( decisionFct[argmin] / std::accumulate(decisionFct.begin(),decisionFct.end(),0) );
+      }
+    }
 
     return res;
   }

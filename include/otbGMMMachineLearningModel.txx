@@ -264,6 +264,8 @@ void
 GMMMachineLearningModel<TInputValue,TTargetValue>
 ::Train()
 {
+  Superclass::m_ConfidenceIndex = true;
+
   // Get pointer to samples and labels
   typename InputListSampleType::Pointer samples = Superclass::GetInputListSample();
   typename TargetListSampleType::Pointer labels = Superclass::GetTargetListSample();
@@ -498,6 +500,8 @@ void
 GMMMachineLearningModel<TInputValue,TTargetValue>
 ::Load(const std::string & filename, const std::string & name)
 {
+  Superclass::m_ConfidenceIndex = true;
+
   std::ifstream ifs(filename.c_str(), std::ios::in);
 
   std::string header;
