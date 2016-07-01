@@ -42,6 +42,11 @@ public:
   itkNewMacro(Self);
   itkTypeMacro(GMMSelectionMachineLearningModel, GMMMachineLearningModel);
 
+  itkSetMacro(EnableOptimalSet, bool);
+  itkGetMacro(EnableOptimalSet, bool);
+  itkSetMacro(VarNbPrediction, int);
+  itkGetMacro(VarNbPrediction, int);
+
   std::vector<int> GetSelectedVar();
   void SetSelectedVar(std::vector<int> varSubSet, int recompute=1);
 
