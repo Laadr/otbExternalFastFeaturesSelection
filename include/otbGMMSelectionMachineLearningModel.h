@@ -38,31 +38,53 @@ public:
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
   typedef typename ClassSampleType::Pointer                 ClassSamplePointer;
 
-  /** Run-time type information (and related methods). */
   itkNewMacro(Self);
   itkTypeMacro(GMMSelectionMachineLearningModel, GMMMachineLearningModel);
 
+  /** Define accessors */
   itkSetMacro(EnableOptimalSet, bool);
   itkGetMacro(EnableOptimalSet, bool);
   itkSetMacro(VarNbPrediction, int);
   itkGetMacro(VarNbPrediction, int);
-
+  ClassSamplePointer GetClassSamples(int classId);
   std::vector<int> GetSelectedVar();
   void SetSelectedVar(std::vector<int> varSubSet, int recompute=1);
+  std::vector<double> GetCriterionBestValues();
 
+  /** Extract a vector from a vector by indexes */
   void ExtractVector(const std::vector<int> & indexes, const VectorType& input, VectorType& ouput);
+
+  /** Extract a column matrix from a vector by indexes */
   void ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput);
+
+  /** Extract a column matrix from a matrix by column nb and indexes */
   void ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput);
+
+  /** Extract a matrix from a symmetric matrix by indexes */
   void ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& ouput);
+
+  /** Add sample to fold */
   void AddInstanceToFold(typename InputListSampleType::Pointer samples, std::vector<InstanceIdentifier> & fold, int start, int end);
+
+  /** Update model (proportion and cst) */
   void UpdateProportion();
 
+  /** Compute criterion for overall accuracy, Cohen's kappa and F1-mean */
   void ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::string criterion);
-  void ComputeJM         (std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool);
-  void ComputeDivKL      (std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool);
 
+  /** Compute criterion for Jeffrey-Matusita distance */
+  void ComputeJM(std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool);
+
+  /** Compute criterion for Kullback–Leibler divergence */
+  void ComputeDivKL(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool);
+
+  /** Front-end function to call selection */
   void Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold, int seed=0);
+
+  /** Perform sequential forward selection */
   void ForwardSelection(std::string criterion, int selectedVarNb);
+
+  /** Perform sequential floating forward selection */
   void FloatingForwardSelection(std::string criterion, int selectedVarNb);
 
   /** Save the model to file */
@@ -76,8 +98,6 @@ public:
 
   /** Predict values using the model */
   virtual TargetSampleType Predict(const InputSampleType& input, ConfidenceValueType *quality=NULL) const;
-
-  ClassSamplePointer GetClassSamples(int classId);
 
 protected:
   /** Constructor */
@@ -110,12 +130,12 @@ protected:
   /** Vector of model for cross-validation */
   std::vector<GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::Pointer > m_SubmodelCv;
 
+  /** Array containing id of test samples for each class for cross validation */
+  std::vector<ClassSamplePointer> m_Fold;
+
 private:
   GMMSelectionMachineLearningModel(const Self &); //purposely not implemented
   void operator =(const Self&); //purposely not implemented
-
-  /** Array containing id of test samples for each class for cross validation */
-  std::vector<ClassSamplePointer> m_Fold;
 };
 } // end namespace otb
 

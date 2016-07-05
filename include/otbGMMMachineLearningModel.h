@@ -29,13 +29,10 @@ public:
   typedef typename Superclass::TargetListSampleType       TargetListSampleType;
   typedef typename Superclass::ConfidenceValueType        ConfidenceValueType;
 
-  /** Types of the mean and the covariance calculator that will update
-   *  this component's distribution parameters */
   typedef double RealType;
   typedef vnl_matrix<RealType> MatrixType;
   typedef vnl_vector<RealType> VectorType;
 
-  /** Run-time type information (and related methods). */
   itkNewMacro(Self);
   itkTypeMacro(GMMMachineLearningModel, MachineLearningModel);
 
@@ -45,7 +42,7 @@ public:
   /** Make a gridsearch with cross-validation to select the appropriate tau */
   void TrainTau(std::vector<RealType> tauGrid, int nfold, const std::string & criterion="accuracy", int seed=0);
 
-  /** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
+  /** Compute decomposition in eigenvalues and eigenvectors of a symmetric matrix */
   void Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, VectorType &eigenValues);
 
   /** Train the machine learning model */
@@ -69,17 +66,17 @@ public:
   virtual bool CanWriteFile(const std::string &);
   //@}
 
+  /** Define accessors */
   itkSetMacro(ClassNb, unsigned int);
   itkGetMacro(ClassNb, unsigned int);
   itkSetMacro(FeatNb, unsigned int);
   itkGetMacro(FeatNb, unsigned int);
   itkGetMacro(Tau, RealType);
   itkGetMacro(RateGridsearch, std::vector<RealType>);
-
-
   void SetMapOfClasses(const std::map<TargetValueType, int>& mapOfClasses);
   void SetMapOfIndices(const std::map<int, TargetValueType>& mapOfIndices);
 
+  /** Functions to update model */
   void AddMean(VectorType vector);
   void AddCovMatrix(MatrixType covMatrix);
   void AddNbSpl(unsigned long n);
@@ -102,7 +99,7 @@ protected:
   /** Number of features */
   unsigned int m_FeatNb;
 
-  /** Regularisation constant */
+  /** Regularization constant */
   RealType m_Tau;
 
   /** Map of classes */
@@ -110,7 +107,7 @@ protected:
   std::map<int, TargetValueType> m_MapOfIndices;
 
   /** Vector containing the number of samples in each class */
-  std::vector<unsigned long> m_NbSpl;
+  std::vector<unsigned> m_NbSpl;
 
   /** Vector containing the proportion of samples in each class */
   std::vector<double> m_Proportion;
@@ -140,7 +137,7 @@ protected:
   /** Vector of classification rate for each tau tested */
   std::vector<RealType> m_RateGridsearch;
 
-  /** flag that tells if the model support confidence index output */
+  /** Flag that tells if the model support confidence index output */
   bool m_ConfidenceIndex;
 
 private:

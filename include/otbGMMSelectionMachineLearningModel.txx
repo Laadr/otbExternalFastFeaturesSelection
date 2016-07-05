@@ -733,7 +733,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Get info
   int selectedVarNb = m_SelectedVar.size();
 
-
   if (m_SelectedVar.empty())
   {
     RealType alpha1,alpha2;
@@ -998,6 +997,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     }
   }
 }
+
+template <class TInputValue, class TTargetValue>
+std::vector<double>
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::GetCriterionBestValues()
+{
+  return m_CriterionBestValues;
+}
+
 
 template <class TInputValue, class TTargetValue>
 void

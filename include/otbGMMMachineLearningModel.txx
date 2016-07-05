@@ -25,12 +25,15 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 {
 }
 
-
 template <class TInputValue, class TTargetValue>
 GMMMachineLearningModel<TInputValue,TTargetValue>
 ::~GMMMachineLearningModel()
 {
 }
+
+/***************************************/
+/******     Regularization      ********/
+/***************************************/
 
 /** Set m_Tau and update m_LambdaQ and m_CstDecision */
 template <class TInputValue, class TTargetValue>
@@ -40,9 +43,10 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 {
   m_Tau = tau;
 
-  // Precompute lambda^(-1/2) * Q and log(det lambda)
+  // Precompute lambda^(-1/2) * Q, log(det lambda) and -2 log(proportion)
   if (! (m_Q.empty()))
   {
+    // Allocation
     RealType lambda;
     m_CstDecision.assign(m_ClassNb,0);
     m_LambdaQ.resize(m_ClassNb, MatrixType(m_FeatNb,m_FeatNb));
@@ -82,24 +86,28 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   typename CovarianceEstimatorType::Pointer covarianceEstimator = CovarianceEstimatorType::New();
   VectorType meanFold;
   MatrixType covarianceFold, adjustedMean;
+  unsigned nbSplFold;
 
   for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
-    // Shuffle id of samples
-    std::srand( unsigned( seed ) );
+    // Get all sample ids from ith class
     std::vector<InstanceIdentifier> indices;
     for (unsigned j=0; j<m_NbSpl[i]; ++j)
       indices.push_back((m_ClassSamples[i])->GetInstanceIdentifier(j));
 
+    // Shuffle ids
+    std::srand( unsigned( seed ) );
     std::random_shuffle( indices.begin(), indices.end() );
 
-    unsigned nbSplFold = m_NbSpl[i]/nfold;
+    // Compute number of samples by fold
+    nbSplFold = m_NbSpl[i]/nfold;
 
     for (int j = 0; j < nfold; ++j)
     {
       // Add subpart of id to fold
       if (j==nfold-1)
       {
+        // Last fold get the remaining samples
         folds[j].push_back( ClassSampleType::New() );
         folds[j][folds[j].size()-1]->SetSample( Superclass::GetInputListSample() );
         for (int k = j*nbSplFold; k < m_NbSpl[i]; ++k)
@@ -127,9 +135,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
       covarianceFold = covarianceEstimator->GetCovarianceMatrix().GetVnlMatrix();
       meanFold       = VectorType(covarianceEstimator->GetMean().GetDataPointer(),m_FeatNb);
 
-      submodelCv[j]->AddMean( (1/((RealType) m_NbSpl[i] - (RealType) nbSplFold)) * ((RealType) m_NbSpl[i] * m_Means[i] - (RealType) nbSplFold * meanFold) );
-      adjustedMean = MatrixType((m_Means[i]-meanFold).data_block(), m_FeatNb, 1);
-      submodelCv[j]->AddCovMatrix( (1/((RealType)m_NbSpl[i]-(RealType)nbSplFold-1)) * ( ((RealType)m_NbSpl[i]-1)*m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)m_NbSpl[i]*(RealType)nbSplFold/((RealType)m_NbSpl[i]-(RealType)nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType - ok?
+      submodelCv[j]->AddMean( (1/(RealType)(m_NbSpl[i] - nbSplFold)) * ((RealType) m_NbSpl[i] * m_Means[i] - (RealType) nbSplFold * meanFold) );
+      adjustedMean = MatrixType((m_Means[i]-meanFold).data_block(), m_FeatNb, 1); // convert in matrix
+      submodelCv[j]->AddCovMatrix( (1/(RealType)(m_NbSpl[i]-nbSplFold-1)) * ( ((RealType)m_NbSpl[i]-1)*m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)m_NbSpl[i]*(RealType)nbSplFold/(RealType)(m_NbSpl[i]-nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType
     }
   }
 
@@ -150,13 +158,14 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
     typename ConfusionMatrixType::Pointer confM = ConfusionMatrixType::New();
 
+    // Classify with all submodels for a given tau
     for (int i = 0; i < nfold; ++i)
     {
       submodelCv[i]->SetTau((RealType) tauGrid[j]);
 
       for (unsigned int c = 0; c < m_ClassNb; ++c)
       {
-        unsigned nbSplFold = m_NbSpl[c]/nfold;
+        nbSplFold = m_NbSpl[c]/nfold;
 
         if (i==nfold-1)
         {
@@ -180,6 +189,8 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
         }
       }
     }
+
+    // Evaluate classification rate
     confM->SetReferenceLabels(RefTargetListSample);
     confM->SetProducedLabels(TargetListSample);
     confM->Compute();
@@ -202,10 +213,14 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     }
   }
 
+  // Keep best tau
   int argmax = std::distance(m_RateGridsearch.begin(), std::max_element(m_RateGridsearch.begin(), m_RateGridsearch.end()));
-
   this->SetTau(tauGrid[argmax]);
 }
+
+/***************************************/
+/**********     Tools      *************/
+/***************************************/
 
 /** Update the proportion of samples */
 template <class TInputValue, class TTargetValue>
@@ -238,19 +253,51 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
-/** Compute de decomposition in eigenvalues and eigenvectors of a matrix */
+/** Functions to update model (mean) */
+template <class TInputValue, class TTargetValue>
+void
+GMMMachineLearningModel<TInputValue,TTargetValue>
+::AddMean(VectorType vector)
+{
+  m_Means.push_back(vector);
+}
+
+/** Functions to update model (covariance matrix) */
+template <class TInputValue, class TTargetValue>
+void
+GMMMachineLearningModel<TInputValue,TTargetValue>
+::AddCovMatrix(MatrixType covMatrix)
+{
+  m_Covariances.push_back(covMatrix);
+}
+
+/** Functions to update model (spl nb) */
+template <class TInputValue, class TTargetValue>
+void
+GMMMachineLearningModel<TInputValue,TTargetValue>
+::AddNbSpl(unsigned long n)
+{
+  m_NbSpl.push_back(n);
+}
+
+/** Compute decomposition in eigenvalues and eigenvectors of a symmetric matrix */
 template <class TInputValue, class TTargetValue>
 void GMMMachineLearningModel<TInputValue,TTargetValue>
 ::Decomposition(MatrixType &inputMatrix, MatrixType &outputMatrix, VectorType &eigenValues)
 {
   vnl_symmetric_eigensystem_compute( inputMatrix, outputMatrix, eigenValues );
 
+  // Replace eigenvalues lower than min precision by min precision
   for (int i = 0; i < eigenValues.size(); ++i)
   {
     if (eigenValues[i] < std::numeric_limits<RealType>::epsilon())
       eigenValues[i] = std::numeric_limits<RealType>::epsilon();
   }
 }
+
+/***************************************/
+/*******     Classification    *********/
+/***************************************/
 
 /** Train the machine learning model */
 template <class TInputValue, class TTargetValue>
@@ -269,7 +316,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   typename InputListSampleType::ConstIterator inputIterator = samples->Begin();
 
   // Get number of samples
-  unsigned long sampleNb = labels->Size();
+  float sampleNb = (float) labels->Size();
 
   // Get number of features
   m_FeatNb = samples->GetMeasurementVectorSize();
@@ -289,10 +336,10 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Create one subsample set for each class
-  m_ClassSamples.reserve(m_ClassNb);
+  m_ClassSamples.resize(m_ClassNb);
   for ( unsigned int i = 0; i < m_ClassNb; ++i )
   {
-    m_ClassSamples.push_back( ClassSampleType::New() );
+    m_ClassSamples[i] = ClassSampleType::New();
     m_ClassSamples[i]->SetSample( samples );
   }
   inputIterator = samples->Begin();
@@ -324,7 +371,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   {
     // Estimate covariance matrices, mean vectors and proportions
     m_NbSpl[i] = m_ClassSamples[i]->Size();
-    m_Proportion[i] = (float) m_NbSpl[i] / (float) sampleNb;
+    m_Proportion[i] = (float) m_NbSpl[i] / sampleNb;
 
     covarianceEstimator->SetInput( m_ClassSamples[i] );
     covarianceEstimator->Update();
@@ -349,6 +396,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/** Predict values using the model */
 template <class TInputValue, class TTargetValue>
 typename GMMMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
@@ -393,6 +441,11 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   return res;
 }
 
+/***************************************/
+/*********     Read/Write    ***********/
+/***************************************/
+
+/** Save the model to file */
 template <class TInputValue, class TTargetValue>
 void
 GMMMachineLearningModel<TInputValue,TTargetValue>
@@ -405,18 +458,20 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   ofs << "GMMmodel"<< std::endl;
 
   // Store single value data
-  ofs << m_ClassNb << std::endl;
-  ofs << m_FeatNb << std::endl;
-  ofs << m_Tau << std::endl;
-  ofs << m_EigenValues[0].size() << std::endl;
+  ofs << "classnb: " << m_ClassNb << std::endl;
+  ofs << "featnb: " << m_FeatNb << std::endl;
+  ofs << "tau: " << m_Tau << std::endl;
+  ofs << "featNbForDecomp: " << m_EigenValues[0].size() << std::endl;
 
   // Store label mapping (only one way)
+  ofs << "LabelMapping:" << std::endl;
   typedef typename std::map<TargetValueType, int>::const_iterator MapIterator;
   for (MapIterator classMapIter = m_MapOfClasses.begin(); classMapIter != m_MapOfClasses.end(); classMapIter++)
     ofs << classMapIter->first << " " << classMapIter->second << " ";
   ofs << std::endl;
 
   // Store vector of nb of samples
+  ofs << "SamplesNb:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
     ofs << m_NbSpl[i] << " ";
   ofs << std::endl;
@@ -426,11 +481,13 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   ofs.precision(17);
 
   // Store vector of proportion of samples
+  ofs << "Proportion:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
     ofs << m_Proportion[i] << " ";
   ofs << std::endl;
 
   // Store vector of mean vector (one by line)
+  ofs << "MeanVector:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
   {
     for (int j = 0; j < m_FeatNb; ++j)
@@ -440,6 +497,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Store vector of covariance matrices (one by line)
+  ofs << "CovarianceMatrices:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
   {
     for (int j = 0; j < m_FeatNb; ++j)
@@ -451,6 +509,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Store vector of eigenvalues vector (one by line)
+  ofs << "Eigenvalues:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
   {
     for (int j = 0; j < m_EigenValues[i].size(); ++j)
@@ -460,6 +519,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Store vector of eigenvectors matrices (one by line)
+  ofs << "Eigenvectors:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
   {
     for (int j = 0; j < m_Q[i].rows(); ++j)
@@ -471,6 +531,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Store vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
+  ofs << "LambdaQ:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
   {
     for (int j = 0; j < m_LambdaQ[i].rows(); ++j)
@@ -482,6 +543,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Store vector of scalar (logdet cov - 2*log proportion)
+  ofs << "CstDecision:" << std::endl;
   for (int i = 0; i < m_ClassNb; ++i)
     ofs << m_CstDecision[i] << " ";
   ofs << std::endl;
@@ -489,6 +551,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   ofs.close();
 }
 
+/** Load the model from file */
 template <class TInputValue, class TTargetValue>
 void
 GMMMachineLearningModel<TInputValue,TTargetValue>
@@ -498,15 +561,19 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   std::ifstream ifs(filename.c_str(), std::ios::in);
 
-  std::string header;
+  std::string header, dump;
   int decompVarNb;
   // Store header
   ifs >> header;
 
   // Load single value data
+  ifs >> dump;
   ifs >> m_ClassNb;
+  ifs >> dump;
   ifs >> m_FeatNb;
+  ifs >> dump;
   ifs >> m_Tau;
+  ifs >> dump;
   ifs >> decompVarNb;
 
   // Allocation
@@ -520,6 +587,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   m_CstDecision.resize(m_ClassNb);
 
   // Load label mapping (only one way)
+  ifs >> dump;
   TargetValueType lab;
   int idLab;
   for (int i = 0; i < m_ClassNb; ++i)
@@ -531,48 +599,57 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Load vector of nb of samples
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     ifs >> m_NbSpl[i];
 
   // Load vector of proportion of samples
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     ifs >> m_Proportion[i];
 
   // Load vector of mean vector (one by line)
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < m_FeatNb; ++j)
       ifs >> m_Means[i][j];
 
   // Load vector of covariance matrices (one by line)
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < m_FeatNb; ++j)
       for (int k = 0; k < m_FeatNb; ++k)
         ifs >> m_Covariances[i](j,k);
 
   // Load vector of eigenvalues vector (one by line)
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < decompVarNb; ++j)
       ifs >> m_EigenValues[i][j];
 
   // Load vector of eigenvectors matrices (one by line)
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < decompVarNb; ++j)
       for (int k = 0; k < decompVarNb; ++k)
         ifs >> m_Q[i](j,k);
 
   // Load vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < decompVarNb; ++j)
       for (int k = 0; k < decompVarNb; ++k)
         ifs >> m_LambdaQ[i](j,k);
 
   // Load vector of scalar (logdet cov - 2*log proportion)
+  ifs >> dump;
   for (int i = 0; i < m_ClassNb; ++i)
     ifs >> m_CstDecision[i];
 
   ifs.close();
 }
 
+/** Is the input model file readable and compatible with the corresponding classifier ? */
 template <class TInputValue, class TTargetValue>
 bool
 GMMMachineLearningModel<TInputValue,TTargetValue>
@@ -597,6 +674,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   return false;
 }
 
+/** Is the input model file writable and compatible with the corresponding classifier ? */
 template <class TInputValue, class TTargetValue>
 bool
 GMMMachineLearningModel<TInputValue,TTargetValue>
@@ -614,6 +692,10 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   Superclass::PrintSelf(os,indent);
 }
 
+/***************************************/
+/********       Accessors       ********/
+/***************************************/
+
 template <class TInputValue, class TTargetValue>
 void
 GMMMachineLearningModel<TInputValue,TTargetValue>
@@ -629,31 +711,6 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 {
  m_MapOfIndices = mapOfIndices;
 }
-
-template <class TInputValue, class TTargetValue>
-void
-GMMMachineLearningModel<TInputValue,TTargetValue>
-::AddMean(VectorType vector)
-{
-  m_Means.push_back(vector);
-}
-
-template <class TInputValue, class TTargetValue>
-void
-GMMMachineLearningModel<TInputValue,TTargetValue>
-::AddCovMatrix(MatrixType covMatrix)
-{
-  m_Covariances.push_back(covMatrix);
-}
-
-template <class TInputValue, class TTargetValue>
-void
-GMMMachineLearningModel<TInputValue,TTargetValue>
-::AddNbSpl(unsigned long n)
-{
-  m_NbSpl.push_back(n);
-}
-
 
 } //end namespace otb
 
