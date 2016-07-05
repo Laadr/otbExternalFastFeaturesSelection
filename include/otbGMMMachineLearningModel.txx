@@ -142,7 +142,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   // Perform grid-search
   typedef ConfusionMatrixCalculator< TargetListSampleType, TargetListSampleType > ConfusionMatrixType;
   TargetSampleType res;
-  std::vector<RealType> scores(tauGrid.size());
+  m_RateGridsearch.resize(tauGrid.size());
 
   for (int j = 0; j < tauGrid.size(); ++j)
   {
@@ -186,11 +186,11 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
     if (criterion.compare("accuracy") == 0)
     {
-      scores[j] = (RealType) confM->GetOverallAccuracy();
+      m_RateGridsearch[j] = (RealType) confM->GetOverallAccuracy();
     }
     else if (criterion.compare("kappa") == 0)
     {
-      scores[j] = (RealType) confM->GetKappaIndex();
+      m_RateGridsearch[j] = (RealType) confM->GetKappaIndex();
     }
     else if (criterion.compare("f1mean") == 0)
     {
@@ -198,17 +198,11 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
       RealType meanFscores = 0;
       for (int i = 0; i < Fscores.Size(); ++i)
         meanFscores += (RealType) Fscores[i];
-      scores[j] = meanFscores/m_ClassNb;
+      m_RateGridsearch[j] = meanFscores/m_ClassNb;
     }
   }
 
-  for (int i = 0; i < tauGrid.size(); ++i)
-  {
-    std::cout << scores[i] << " ";
-  }
-  std::cout << std::endl;
-
-  int argmax = std::distance(scores.begin(), std::max_element(scores.begin(), scores.end()));
+  int argmax = std::distance(m_RateGridsearch.begin(), std::max_element(m_RateGridsearch.begin(), m_RateGridsearch.end()));
 
   this->SetTau(tauGrid[argmax]);
 }

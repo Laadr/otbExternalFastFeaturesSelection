@@ -428,17 +428,26 @@ private:
 
       if (tauGridString.size() == 1)
       {
-        GMMClassifier->SetTau(atoi(tauGridString[0].c_str()));
+        GMMClassifier->SetTau(atof(tauGridString[0].c_str()));
       }
       else
       {
         otbAppLogINFO("Performing selection of tau...");
         std::vector<double> tauGrid(tauGridString.size());
         for (unsigned i = 0; i < tauGridString.size(); ++i)
-        {
-          tauGrid[i] = atoi(tauGridString[i].c_str());
-        }
+          tauGrid[i] = atof(tauGridString[i].c_str());
         GMMClassifier->TrainTau(tauGrid,GetParameterInt("gmm.ncv"),GetParameterString("gmm.metric"),GetParameterInt("gmm.srand"));
+
+        std::ostringstream os1;
+        for (unsigned i = 0; i < tauGrid.size(); ++i)
+          os1 << tauGrid[i] << " ";
+        otbAppLogINFO("Tau tested: " << os1.str());
+
+        std::vector<double> rateGridsearch = GMMClassifier->GetRateGridsearch();
+        std::ostringstream os2;
+        for (unsigned i = 0; i < tauGrid.size(); ++i)
+          os2 << rateGridsearch[i] << " ";
+        otbAppLogINFO("Classification rate of gridsearch (" << GetParameterString("gmm.metric") <<"): " << os2.str());
       }
     }
 

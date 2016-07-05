@@ -175,9 +175,9 @@ private:
     SetDefaultParameterInt("gmm.ncv", 5);
     SetParameterDescription("gmm.ncv", "Number of folds for cross-validation to estimate the classification rate when selecting variables (default = 5). It is ussed only with Jeffries-Matusita distance and Kullback–Leibler divergence.");
 
-    AddParameter(ParameterType_Empty, "gmm.best", "Enable choice optimal set of features after selection. If disable, all selected features are used");
-    SetDefaultParameterInt("gmm.best", true);
-    SetParameterDescription("gmm.best","Enable choice optimal set of features after selection (default). If disable, all selected features are used.");
+    AddParameter(ParameterType_Int, "gmm.best", "If 1, choose optimal set of features after selection. If 0, all selected features are used");
+    SetDefaultParameterInt("gmm.best", 1);
+    SetParameterDescription("gmm.best","If 1, choose optimal set of features after selection (default). If 0, all selected features are used.");
 
     AddParameter(ParameterType_Int, "gmm.srand", "Rand seed for cross-validation");
     SetParameterInt("gmm.srand", 0);
@@ -196,7 +196,7 @@ private:
     SetDocExampleParameterValue("gmm.method", "forward");
     SetDocExampleParameterValue("gmm.crit", "jm");
     SetDocExampleParameterValue("gmm.ncv", "5");
-    SetDocExampleParameterValue("gmm.best", "true");
+    SetDocExampleParameterValue("gmm.best", "1");
     SetDocExampleParameterValue("gmm.srand", "0");
     SetDocExampleParameterValue("io.out", "svmModelQB1.txt");
     SetDocExampleParameterValue("io.confmatout", "svmConfusionMatrixQB1.csv");
@@ -441,7 +441,7 @@ private:
 
     GMMClassifier->Train();
 
-    GMMClassifier->SetEnableOptimalSet(GetParameterEmpty("gmm.best"));
+    GMMClassifier->SetEnableOptimalSet((bool) GetParameterInt("gmm.best"));
     GMMClassifier->Selection(GetParameterString("gmm.method"),GetParameterString("gmm.crit"),GetParameterInt("gmm.varnb"),GetParameterInt("gmm.ncv"),GetParameterInt("gmm.srand"));
 
     // update reporter

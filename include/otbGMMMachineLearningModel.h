@@ -74,6 +74,8 @@ public:
   itkSetMacro(FeatNb, unsigned int);
   itkGetMacro(FeatNb, unsigned int);
   itkGetMacro(Tau, RealType);
+  itkGetMacro(RateGridsearch, std::vector<RealType>);
+
 
   void SetMapOfClasses(const std::map<TargetValueType, int>& mapOfClasses);
   void SetMapOfIndices(const std::map<int, TargetValueType>& mapOfIndices);
@@ -134,6 +136,9 @@ protected:
   /** Create one subset of samples for each class */
   typedef itk::Statistics::Subsample< InputListSampleType > ClassSampleType;
   std::vector< typename ClassSampleType::Pointer > m_ClassSamples;
+
+  /** Vector of classification rate for each tau tested */
+  std::vector<RealType> m_RateGridsearch;
 
   /** flag that tells if the model support confidence index output */
   bool m_ConfidenceIndex;
