@@ -63,20 +63,11 @@ public:
   /** Extract a matrix from a symmetric matrix by indexes */
   void ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& ouput);
 
-  /** Add sample to fold */
+  /** Add samples to fold */
   void AddInstanceToFold(typename InputListSampleType::Pointer samples, std::vector<InstanceIdentifier> & fold, int start, int end);
 
-  /** Update model (proportion and cst) */
+  /** Update model (proportion and cst 2log(prop)) */
   void UpdateProportion();
-
-  /** Compute criterion for overall accuracy, Cohen's kappa and F1-mean */
-  void ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::string criterion);
-
-  /** Compute criterion for Jeffrey-Matusita distance */
-  void ComputeJM(std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool);
-
-  /** Compute criterion for Kullback–Leibler divergence */
-  void ComputeDivKL(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool);
 
   /** Front-end function to call selection */
   void Selection(std::string direction, std::string criterion, int selectedVarNb, int nfold, int seed=0);
@@ -86,6 +77,15 @@ public:
 
   /** Perform sequential floating forward selection */
   void FloatingForwardSelection(std::string criterion, int selectedVarNb);
+
+  /** Compute criterion for overall accuracy, Cohen's kappa and F1-mean */
+  void ComputeClassifRate(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool, const std::string criterion);
+
+  /** Compute criterion for Jeffrey-Matusita distance */
+  void ComputeJM(std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool);
+
+  /** Compute criterion for Kullback–Leibler divergence */
+  void ComputeDivKL(std::vector<RealType> & criterionVal, const std::string direction, std::vector<int> & variablesPool);
 
   /** Save the model to file */
   virtual void Save(const std::string & filename, const std::string & name="");

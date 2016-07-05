@@ -27,6 +27,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
 }
 
+/***************************************/
+/********   Extract submatrix   ********/
+/***************************************/
+
+/** Extract a vector from a vector by indexes */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -36,6 +41,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     ouput[i] = input[indexes[i]];
 }
 
+/** Extract a column matrix from a vector by indexes */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -45,6 +51,17 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     ouput(i,0) = input[indexes[i]];
 }
 
+/** Extract a column matrix from a matrix by column nb and indexes */
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput)
+{
+  for (int i = 0; i < indexesRow.size(); ++i)
+    ouput(i,0) = input(indexesRow[i],colIndex);
+}
+
+/** Extract a matrix from a symmetric matrix by indexes */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -61,15 +78,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
-template <class TInputValue, class TTargetValue>
-void
-GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput)
-{
-  for (int i = 0; i < indexesRow.size(); ++i)
-    ouput(i,0) = input(indexesRow[i],colIndex);
-}
+/***************************************/
+/************     Tools    *************/
+/***************************************/
 
+/** Add samples to fold */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -81,6 +94,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     m_Fold[m_Fold.size()-1]->AddInstance( input[i] );
 }
 
+/** Update model (proportion and cst 2log(prop)) */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -95,10 +109,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   for (int i = 0; i < Superclass::m_ClassNb; ++i)
   {
     Superclass::m_Proportion[i] = (double) Superclass::m_NbSpl[i] / (double) totalNb;
-    m_Logprop[i]                = 2* (RealType) log(Superclass::m_Proportion[i]);
+    m_Logprop[i]                = 2 * (RealType) log(Superclass::m_Proportion[i]);
   }
 }
 
+/***************************************/
+/******   Selection algorithm    *******/
+/***************************************/
+
+/** Front-end function to call selection */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -108,25 +127,27 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0))
   {
     // Allocation
+    m_SubmodelCv.resize(nfold);
     for (int j = 0; j < nfold; ++j)
-      m_SubmodelCv.push_back(GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::New());
+      m_SubmodelCv[j] = GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::New();
     typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
     typename CovarianceEstimatorType::Pointer covarianceEstimator = CovarianceEstimatorType::New();
     VectorType meanFold;
     MatrixType covarianceFold, adjustedMean;
+    unsigned nbSplFold;
 
     for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
     {
+      // Get all sample ids from ith class
+      std::vector<InstanceIdentifier> indices(Superclass::m_NbSpl[i]);
+      for (unsigned j=0; j<Superclass::m_NbSpl[i]; ++j)
+        indices[j] = (Superclass::m_ClassSamples[i])->GetInstanceIdentifier(j);
+
       // Shuffle id of samples
       std::srand( unsigned( seed ) );
-      std::srand( unsigned( 0 ) );
-      std::vector<InstanceIdentifier> indices;
-      for (unsigned j=0; j<Superclass::m_NbSpl[i]; ++j)
-        indices.push_back((Superclass::m_ClassSamples[i])->GetInstanceIdentifier(j));
-
       std::random_shuffle( indices.begin(), indices.end() );
 
-      unsigned nbSplFold = Superclass::m_NbSpl[i]/nfold; // to verify
+      nbSplFold = Superclass::m_NbSpl[i]/nfold;
 
       for (int j = 0; j < nfold; ++j)
       {
@@ -148,16 +169,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         m_SubmodelCv[j]->SetClassNb(Superclass::m_ClassNb);
         m_SubmodelCv[j]->SetFeatNb(Superclass::m_FeatNb);
 
-
         covarianceEstimator->SetInput( m_SubmodelCv[j]->GetClassSamples(i) );
         covarianceEstimator->Update();
 
         covarianceFold = covarianceEstimator->GetCovarianceMatrix().GetVnlMatrix();
         meanFold       = VectorType(covarianceEstimator->GetMean().GetDataPointer(),Superclass::m_FeatNb);
 
-        m_SubmodelCv[j]->AddMean( (1/((RealType) Superclass::m_NbSpl[i] - (RealType) nbSplFold)) * ((RealType) Superclass::m_NbSpl[i] * Superclass::m_Means[i] - (RealType) nbSplFold * meanFold) );
-        adjustedMean = MatrixType((Superclass::m_Means[i]-meanFold).data_block(), Superclass::m_FeatNb, 1);
-        m_SubmodelCv[j]->AddCovMatrix( (1/((RealType)Superclass::m_NbSpl[i]-(RealType)nbSplFold-1)) * ( ((RealType)Superclass::m_NbSpl[i]-1)*Superclass::m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)Superclass::m_NbSpl[i]*(RealType)nbSplFold/((RealType)Superclass::m_NbSpl[i]-(RealType)nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType - ok?
+        m_SubmodelCv[j]->AddMean( (1/(RealType)(Superclass::m_NbSpl[i] - nbSplFold)) * ((RealType) Superclass::m_NbSpl[i] * Superclass::m_Means[i] - (RealType) nbSplFold * meanFold) );
+        adjustedMean = MatrixType((Superclass::m_Means[i]-meanFold).data_block(), Superclass::m_FeatNb, 1); // convert to matrix
+        m_SubmodelCv[j]->AddCovMatrix( (1/(RealType)(Superclass::m_NbSpl[i]-nbSplFold-1)) * ( ((RealType)Superclass::m_NbSpl[i]-1)*Superclass::m_Covariances[i] - ((RealType)nbSplFold-1)*covarianceFold - (RealType)Superclass::m_NbSpl[i]*(RealType)nbSplFold/(RealType)(Superclass::m_NbSpl[i]-nbSplFold) * adjustedMean * adjustedMean.transpose() ) ); // convert all unsigned in realType
       }
     }
 
@@ -165,11 +185,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       m_SubmodelCv[i]->UpdateProportion();
   }
 
+  // Perform selection
   if (direction.compare("forward") == 0)
     ForwardSelection(criterion, selectedVarNb);
   else if (direction.compare("sffs") == 0)
     FloatingForwardSelection(criterion, selectedVarNb);
 
+  // Choose set for prediction (best set or full set)
   std::vector<int> varPrediction;
   if (m_EnableOptimalSet)
   {
@@ -183,15 +205,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     varPrediction     = m_SelectedVar;
   }
 
-  // Precomputation of terms use for prediction //
+  // Precomputation of terms use for prediction
   Superclass::m_Q.clear();
   Superclass::m_EigenValues.clear();
   Superclass::m_CstDecision.clear();
   Superclass::m_LambdaQ.clear();
+
   Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(m_VarNbPrediction,m_VarNbPrediction));
   Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
   MatrixType subCovariance(m_VarNbPrediction,m_VarNbPrediction);
-
   Superclass::m_CstDecision.assign(Superclass::m_ClassNb,0);
   Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(m_VarNbPrediction,m_VarNbPrediction));
   m_SubMeans.resize(Superclass::m_ClassNb, VectorType(m_VarNbPrediction));
@@ -220,6 +242,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/** Perform sequential forward selection */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -228,10 +251,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Initialization
   int currentSelectedVarNb = 0;
   RealType argMaxValue;
-  std::vector<int> variablesPool;
-  variablesPool.resize(Superclass::m_FeatNb);
   m_CriterionBestValues.resize(selectedVarNb);
   m_SelectedVar.clear();
+  std::vector<int> variablesPool(Superclass::m_FeatNb);
   for (int i = 0; i < Superclass::m_FeatNb; ++i)
     variablesPool[i] = i;
 
@@ -264,13 +286,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
     m_CriterionBestValues[currentSelectedVarNb] = criterionVal[argMaxValue];
 
-    // std::cout << "Criterion best values:";
-    // for (typename std::vector<RealType>::iterator it = criterionBestValues.begin(); it != criterionBestValues.end(); ++it)
-    // {
-    //   std::cout << ' ' << *it;
-    // }
-    // std::cout << std::endl;
-
     // Add it to selected var and delete it from the pool
     m_SelectedVar.push_back(variablesPool[argMaxValue]);
     variablesPool.erase(variablesPool.begin()+argMaxValue);
@@ -286,6 +301,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/** Perform sequential floating forward selection */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -294,10 +310,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Initialization
   int currentSelectedVarNb = 0;
   RealType argMaxValue;
-  std::vector<int> variablesPool;
-  variablesPool.resize(Superclass::m_FeatNb);
   m_CriterionBestValues.clear();
   m_SelectedVar.clear();
+  std::vector<int> variablesPool(Superclass::m_FeatNb);
   for (int i = 0; i < Superclass::m_FeatNb; ++i)
     variablesPool[i] = i;
 
@@ -306,7 +321,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   bool flagBacktrack;
 
   // Start the forward search
-  while ((currentSelectedVarNb<selectedVarNb)&&(!variablesPool.empty()))
+  while ((currentSelectedVarNb<selectedVarNb) && (!variablesPool.empty()))
   {
     std::vector<RealType> criterionVal(variablesPool.size(),0);
 
@@ -402,6 +417,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/***************************************/
+/******     Criterion functions    *****/
+/***************************************/
+
+/** Compute criterion for overall accuracy, Cohen's kappa and F1-mean */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -419,8 +439,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     {
       typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
       typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
-      typename ConfusionMatrixType::Pointer confM = ConfusionMatrixType::New();
+      typename ConfusionMatrixType::Pointer confM                = ConfusionMatrixType::New();
 
+      // Predict labels with variables k added
       for (int i = 0; i < m_Fold.size(); ++i)
       {
         for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
@@ -437,6 +458,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         }
       }
 
+      // Evaluate classification rate
       confM->SetReferenceLabels(RefTargetListSample);
       confM->SetProducedLabels(TargetListSample);
       confM->Compute();
@@ -472,7 +494,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     VectorType eigenValues(selectedVarNb);
     std::vector<RealType> logdet(Superclass::m_ClassNb);
 
-    // Compute inv of covariance matrix
+    // Compute inv of covariance matrix and logdet
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractVectorToColMatrix(m_SelectedVar, Superclass::m_Means[c], subMeans[c]);
@@ -499,6 +521,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
       typename ConfusionMatrixType::Pointer confM = ConfusionMatrixType::New();
 
+      // Predict labels with variables k added
       if (direction.compare("forward")==0)
       {
         for (int c = 0; c < Superclass::m_ClassNb; ++c)
@@ -567,6 +590,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         }
       }
 
+      // Evaluate classification rate
       confM->SetReferenceLabels(RefTargetListSample);
       confM->SetProducedLabels(TargetListSample);
       confM->Compute();
@@ -591,24 +615,26 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/** Compute criterion for Jeffrey-Matusita distance */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ComputeJM(std::vector<RealType> & JM, const std::string direction, std::vector<int> & variablesPool)
 {
-
   int selectedVarNb = m_SelectedVar.size();
 
   // Compute all possible update of 0.5* log det cov(idx)
   std::vector<std::vector<RealType> > halfedLogdet(Superclass::m_ClassNb, std::vector<RealType>(variablesPool.size()));
   if (m_SelectedVar.empty())
   {
+    // Precompute 0.5*logdet(cov)
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
       for (int j = 0; j < variablesPool.size(); ++j)
         halfedLogdet[c][j] = 0.5*log(Superclass::m_Covariances[c](j,j));
 
     RealType md, cs, bij;
 
+    // Compute J-M distance
     for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
     {
       for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
@@ -636,6 +662,8 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     RealType logdet, alpha=0;
     MatrixType u(selectedVarNb,1);
 
+    // Precompute 0.5*logdet(cov)
+    std::vector<int>::iterator varIt;
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],subCovariances[c]);
@@ -644,7 +672,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       invCov = Q * (vnl_diag_matrix<RealType>(eigenValues).invert_in_place() * Q.transpose());
       logdet = eigenValues.apply(log).sum();
 
-      std::vector<int>::iterator varIt = variablesPool.begin();
+      varIt = variablesPool.begin();
       for (int j = 0; j < variablesPool.size(); ++j)
       {
         if (direction.compare("forward")==0)
@@ -685,12 +713,12 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         invCov = Q * (vnl_diag_matrix<RealType>(eigenValues).invert_in_place() * Q.transpose());
         logdet = eigenValues.apply(log).sum();
 
-        std::vector<int>::iterator varIt = variablesPool.begin();
+        varIt = variablesPool.begin();
         for (int k = 0; k < variablesPool.size(); ++k)
         {
           if (direction.compare("forward")==0)
           {
-            md = subMeans[c1].extract(selectedVarNb,1) - subMeans[c2].extract(selectedVarNb,1);
+            md = subMeans[c1] - subMeans[c2];
 
             ExtractReducedColumn(*varIt,m_SelectedVar,Superclass::m_Covariances[c1],u);
             ExtractReducedColumn(*varIt,m_SelectedVar,Superclass::m_Covariances[c2],extractUTmp);
@@ -701,7 +729,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
               alpha = std::numeric_limits<RealType>::epsilon();
 
             logdet_c1c2 = logdet + log(alpha) + (selectedVarNb+1)*log(2);
-
             cst_feat = alpha * pow( ( ((-1/alpha)*(u.transpose()*invCov)*md)(0,0) + (Superclass::m_Means[c1][*varIt] - Superclass::m_Means[c2][*varIt])/alpha), 2);
 
             varIt++;
@@ -713,7 +740,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
               alpha = std::numeric_limits<RealType>::epsilon();
 
             logdet_c1c2 = logdet - log(alpha) + (selectedVarNb-1)*log(2);
-
             cst_feat = - alpha * pow( (invCov.get_n_rows(k,1)*md)(0,0), 2);
           }
 
@@ -725,6 +751,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/** Compute criterion for Kullback–Leibler divergence */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -737,6 +764,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   {
     RealType alpha1,alpha2;
 
+    // Compute KL divergence
     for (int k = 0; k < variablesPool.size(); ++k)
     {
       for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
@@ -765,12 +793,14 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<MatrixType> invCov(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
     int newVarNb=0;
 
+    // Define nb of variables
     if (direction.compare("forward")==0)
       newVarNb = selectedVarNb + 1;
     else if (direction.compare("backward")==0)
       newVarNb = selectedVarNb - 1;
     std::vector<MatrixType> invCov_update(Superclass::m_ClassNb,MatrixType(newVarNb,newVarNb));
 
+    // Extract and decompose cov matrices
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],reducedCovariances);
@@ -787,6 +817,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<int> newSelectedVar(newVarNb);
     for (int k = 0; k < variablesPool.size(); ++k)
     {
+      // commpute update cst
       if (direction.compare("forward")==0)
       {
         std::vector<int>::iterator varIt = m_SelectedVar.begin();
@@ -840,6 +871,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         ExtractSubSymmetricMatrix(newSelectedVar,Superclass::m_Covariances[c],subCovariances[c]);
       }
 
+      // Compute KL divergence
       for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
       {
         for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
@@ -852,6 +884,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/***************************************/
+/********   Classification    **********/
+/***************************************/
+
 /** Train the machine learning model */
 template <class TInputValue, class TTargetValue>
 void
@@ -861,20 +897,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   Superclass::Train();
 }
 
+/** Predict values using the model */
 template <class TInputValue, class TTargetValue>
 typename GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
-  if (quality != NULL)
-  {
-    if (!this->HasConfidenceIndex())
-    {
-      itkExceptionMacro("Confidence index not available for this classifier !");
-    }
-  }
-
   if (m_SelectedVar.empty())
   {
     return Superclass::Predict(rawInput, quality);
@@ -924,6 +953,116 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 }
 
+/***************************************/
+/*********     Read/Write    ***********/
+/***************************************/
+
+/** Save the model to file */
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::Save(const std::string & filename, const std::string & name)
+{
+  // Save GMM model
+  Superclass::Save(filename,name);
+
+  // Save selection model
+  if (m_SelectedVar.size() != 0)
+  {
+    std::string selectionFilename = "selection_" + filename;
+    std::ofstream ofs(selectionFilename.c_str(), std::ios::out);
+
+    // Store number of selected variables
+    ofs << "nbSelectedVar: " << m_SelectedVar.size() << std::endl;
+
+    // Store number of selected features to use
+    ofs << "nbSelectedVarToUse: " << m_VarNbPrediction << std::endl;
+
+    // Store vector of selected features
+    ofs << "selectedVar:" << std::endl;
+    for (int i = 0; i < m_SelectedVar.size(); ++i)
+      ofs << m_SelectedVar[i] << " ";
+    ofs << std::endl;
+
+    // Set writing precision (need c++11 to not hardcode value of double precision)
+    // ofs.precision(std::numeric_limits<double>::max_digits10);
+    ofs.precision(17);
+
+    // Store vector of criterion functions values with the corresponding number of features used
+    ofs << "criterionfctEvolution:" << std::endl;
+    for (int i = 0; i < m_SelectedVar.size(); ++i)
+      ofs << i+1 << " " << m_CriterionBestValues[i] << std::endl;
+
+    // Store vector of size C containing the mean vector of each class for the selected variables (one by line)
+    ofs << "reducedMeanVectors:" << std::endl;
+    for (int i = 0; i < Superclass::m_ClassNb; ++i)
+    {
+      for (int j = 0; j < m_SubMeans[i].size(); ++j)
+        ofs << m_SubMeans[i][j] << " ";
+
+      ofs << std::endl;
+    }
+
+    ofs.close();
+  }
+}
+
+/** Load the model from file */
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::Load(const std::string & filename, const std::string & name)
+{
+  Superclass::Load(filename,name);
+
+  std::string selectionFilename = "selection_" + filename;
+  std::ifstream ifs(selectionFilename.c_str(), std::ios::in);
+
+  if(!ifs)
+  {
+    std::cerr<<"Could not found/read file "<<selectionFilename<<std::endl;
+  }
+  else
+  {
+    int selectedVarNb;
+    std::string dump;
+
+    ifs >> dump;
+    ifs >> selectedVarNb;
+
+    // Load number of selected features to use
+    ifs >> dump;
+    ifs >> m_VarNbPrediction;
+
+    // Allocation
+    m_SelectedVar.resize(selectedVarNb);
+    m_CriterionBestValues.resize(selectedVarNb);
+    m_Logprop.resize(Superclass::m_ClassNb);
+    m_SubMeans.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
+
+    // Load selected variables
+    ifs >> dump;
+    for (int i = 0; i < selectedVarNb; ++i)
+      ifs >> m_SelectedVar[i];
+
+    // Load criterion function values
+    ifs >> dump;
+    for (int i = 0; i < selectedVarNb; ++i)
+    {
+      ifs >> dump;
+      ifs >> m_CriterionBestValues[i];
+    }
+
+    // Load subMean
+    ifs >> dump;
+    for (int i = 0; i < Superclass::m_ClassNb; ++i)
+      for (int j = 0; j < m_VarNbPrediction; ++j)
+        ifs >> m_SubMeans[i][j];
+  }
+
+  ifs.close();
+}
+
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
@@ -932,6 +1071,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Call superclass implementation
   Superclass::PrintSelf(os,indent);
 }
+
+/***************************************/
+/********       Accessors       ********/
+/***************************************/
 
 template <class TInputValue, class TTargetValue>
 typename GMMSelectionMachineLearningModel<TInputValue,TTargetValue>::ClassSamplePointer
@@ -965,10 +1108,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     Superclass::m_EigenValues.clear();
     Superclass::m_CstDecision.clear();
     Superclass::m_LambdaQ.clear();
+
     Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
     Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(selectedVarNb));
     MatrixType subCovariance(selectedVarNb,selectedVarNb);
-
     Superclass::m_CstDecision.resize(Superclass::m_ClassNb,0);
     Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(selectedVarNb,selectedVarNb));
     m_SubMeans.resize(Superclass::m_ClassNb, VectorType(selectedVarNb));
@@ -1004,99 +1147,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::GetCriterionBestValues()
 {
   return m_CriterionBestValues;
-}
-
-
-template <class TInputValue, class TTargetValue>
-void
-GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::Save(const std::string & filename, const std::string & name)
-{
-  Superclass::Save(filename,name);
-
-  if (m_SelectedVar.size() != 0)
-  {
-    std::string selectionFilename = "selection_" + filename;
-    std::ofstream ofs(selectionFilename.c_str(), std::ios::out);
-
-    // Store number of selected variables
-    ofs << m_SelectedVar.size() << std::endl;
-
-    // Store number of selected features to use
-    ofs << m_VarNbPrediction << std::endl;
-
-    // Store vector of selected features
-    for (int i = 0; i < m_SelectedVar.size(); ++i)
-      ofs << m_SelectedVar[i] << " ";
-    ofs << std::endl;
-
-    // Set writing precision (need c++11 to not hardcode value of double precision)
-    // ofs.precision(std::numeric_limits<double>::max_digits10);
-    ofs.precision(17);
-
-    // Store vector of criterion functions values with the corresponding number of features used
-    for (int i = 0; i < m_SelectedVar.size(); ++i)
-      ofs << i+1 << " " << m_CriterionBestValues[i] << std::endl;
-
-    // Store vector of size C containing the mean vector of each class for the selected variables (one by line)
-    for (int i = 0; i < Superclass::m_ClassNb; ++i)
-    {
-      for (int j = 0; j < m_SubMeans[i].size(); ++j)
-        ofs << m_SubMeans[i][j] << " ";
-
-      ofs << std::endl;
-    }
-
-    ofs.close();
-  }
-}
-
-template <class TInputValue, class TTargetValue>
-void
-GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::Load(const std::string & filename, const std::string & name)
-{
-  Superclass::Load(filename,name);
-
-  std::string selectionFilename = "selection_" + filename;
-  std::ifstream ifs(selectionFilename.c_str(), std::ios::in);
-
-  if(!ifs)
-  {
-    std::cerr<<"Could not found/read file "<<selectionFilename<<std::endl;
-  }
-  else
-  {
-    int selectedVarNb, dump;
-    ifs >> selectedVarNb;
-
-    // Load number of selected features to use
-    ifs >> m_VarNbPrediction;
-
-    // Allocation
-    m_SelectedVar.resize(selectedVarNb);
-    m_CriterionBestValues.resize(selectedVarNb);
-    m_Logprop.resize(Superclass::m_ClassNb);
-    m_SubMeans.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
-
-    // Load selected variables
-    for (int i = 0; i < selectedVarNb; ++i)
-      ifs >> m_SelectedVar[i];
-
-    // Load criterion function values
-    for (int i = 0; i < selectedVarNb; ++i)
-    {
-      ifs >> dump;
-      ifs >> m_CriterionBestValues[i];
-    }
-
-    // Load subMean
-    for (int i = 0; i < Superclass::m_ClassNb; ++i)
-      for (int j = 0; j < m_VarNbPrediction; ++j)
-        ifs >> m_SubMeans[i][j];
-  }
-
-  ifs.close();
 }
 
 } //end namespace otb

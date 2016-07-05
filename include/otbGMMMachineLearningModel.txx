@@ -91,9 +91,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
     // Get all sample ids from ith class
-    std::vector<InstanceIdentifier> indices;
+    std::vector<InstanceIdentifier> indices(m_NbSpl[i]);
     for (unsigned j=0; j<m_NbSpl[i]; ++j)
-      indices.push_back((m_ClassSamples[i])->GetInstanceIdentifier(j));
+      indices[j] = (m_ClassSamples[i])->GetInstanceIdentifier(j);
 
     // Shuffle ids
     std::srand( unsigned( seed ) );
