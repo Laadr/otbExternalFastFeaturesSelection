@@ -490,6 +490,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     MatrixType subCovariances(selectedVarNb,selectedVarNb);
     MatrixType Q(selectedVarNb,selectedVarNb);
     std::vector<MatrixType> invCov(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
+    std::vector<MatrixType> lambdaQ(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
     std::vector<MatrixType> subMeans(Superclass::m_ClassNb,MatrixType(selectedVarNb,1));
     VectorType eigenValues(selectedVarNb);
     std::vector<RealType> logdet(Superclass::m_ClassNb);
@@ -501,6 +502,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],subCovariances);
       Superclass::Decomposition(subCovariances, Q, eigenValues);
 
+      lambdaQ[c]= vnl_diag_matrix<RealType>(eigenValues.apply(sqrt)).invert_in_place() * Q.transpose();
       invCov[c] = Q * (vnl_diag_matrix<RealType>(eigenValues).invert_in_place() * Q.transpose());
       logdet[c] = eigenValues.apply(log).sum();
     }
@@ -510,10 +512,14 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<RealType> scores(Superclass::m_ClassNb);
     std::vector<RealType> alpha(Superclass::m_ClassNb);
     std::vector<RealType> logdet_update(Superclass::m_ClassNb);
-    std::vector<MatrixType> v(Superclass::m_ClassNb,MatrixType(selectedVarNb,1));
+    std::vector<MatrixType> v(Superclass::m_ClassNb,MatrixType(1,selectedVarNb));
     MatrixType u(selectedVarNb,1);
-    VectorType input(Superclass::m_FeatNb);
+    // VectorType input(Superclass::m_FeatNb);
     MatrixType subInput(selectedVarNb,1);
+
+    // Intermediate variables to reduce allocation/free time
+    MatrixType subInput_c(selectedVarNb,1);
+    RealType quadraticTermUpdate;
 
     for (int k = 0; k < variablesPool.size(); ++k)
     {
@@ -532,7 +538,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             alpha[c] = std::numeric_limits<RealType>::epsilon();
 
           logdet_update[c] = log(alpha[c]) + logdet[c];
-          v[c] = -1/alpha[c] * (invCov[c]*u);
+          v[c] = -1/alpha[c] * (invCov[c]*u).transpose();
         }
 
         for (int i = 0; i < m_Fold.size(); ++i)
@@ -542,12 +548,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
 
             // Convert input data
-            vnl_copy(vnl_vector<InputValueType>(sample.GetDataPointer(), Superclass::m_FeatNb),input);
             for (int n = 0; n < selectedVarNb; ++n)
-              subInput(n,0) = input[m_SelectedVar[n]];
+              subInput(n,0) = sample[m_SelectedVar[n]];
 
             for (int c = 0; c < Superclass::m_ClassNb; ++c)
-              scores[c] =  ((subInput.transpose() - subMeans[c])*invCov[c]*(subInput - subMeans[c]))(0,0) + alpha[c]*pow(((subInput - subMeans[c])*v[c])(0,0) + 1/alpha[c] * (input[variablesPool[k]] - Superclass::m_Means[c][variablesPool[k]]),2) + logdet_update[c] - m_Logprop[c];
+            {
+              subInput_c = subInput - subMeans[c];
+              quadraticTermUpdate = (v[c]*subInput_c)(0,0) + 1/alpha[c] * (sample[variablesPool[k]] - Superclass::m_Means[c][variablesPool[k]]);
+              scores[c] =  pow((lambdaQ[c]*subInput_c).fro_norm(),2) + alpha[c]*quadraticTermUpdate*quadraticTermUpdate + logdet_update[c] - m_Logprop[c];
+            }
 
             res[0] = Superclass::m_MapOfIndices.at(std::distance(scores.begin(), std::min_element(scores.begin(), scores.end())));
             TargetListSample->PushBack(res);
@@ -565,7 +574,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             alpha[c] = std::numeric_limits<RealType>::epsilon();
 
           logdet_update[c] = logdet[c] - log(alpha[c]);
-          v[c] = invCov[c].get_n_columns(k,1);
+          v[c] = invCov[c].get_n_rows(k,1);
         }
 
         for (int i = 0; i < m_Fold.size(); ++i)
@@ -575,12 +584,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
 
             // Convert input data
-            vnl_copy(vnl_vector<InputValueType>(sample.GetDataPointer(), Superclass::m_FeatNb),input);
             for (int n = 0; n < selectedVarNb; ++n)
-              subInput(n,0) = input[m_SelectedVar[n]];
+              subInput(n,0) = sample[m_SelectedVar[n]];
 
             for (int c = 0; c < Superclass::m_ClassNb; ++c)
-              scores[c] =  ((subInput.transpose() - subMeans[c])*invCov[c]*(subInput - subMeans[c]))(0,0)  - alpha[c]*pow((v[c].transpose()*(subInput - subMeans[c]))(0,0),2) + logdet_update[c] - m_Logprop[c];
+            {
+              subInput_c = subInput - subMeans[c];
+              quadraticTermUpdate = (v[c]*subInput_c)(0,0);
+              scores[c] =  (subInput_c.transpose()*invCov[c]*subInput_c)(0,0)  - alpha[c]*quadraticTermUpdate*quadraticTermUpdate + logdet_update[c] - m_Logprop[c];
+            }
 
             res[0] = Superclass::m_MapOfIndices.at(std::distance(scores.begin(), std::min_element(scores.begin(), scores.end())));
             TargetListSample->PushBack(res);

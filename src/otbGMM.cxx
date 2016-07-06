@@ -1,2 +1,2 @@
 #include "otbGMMMachineLearningModel.h"
-// #include "otbGMMSelectionMachineLearningModel.h"
+#include "otbGMMSelectionMachineLearningModel.h"
