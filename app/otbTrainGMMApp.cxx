@@ -168,9 +168,9 @@ private:
     SetParameterString("gmm.metric", "kappa");
     SetParameterDescription("gmm.metric", "Metric to use for tau selection (default = kappa). The three metrics available are overall accuracy, Cohen's kappa and mean of F1-scores (accuracy/kappa/F1mean).");
 
-    AddParameter(ParameterType_Int, "gmm.srand", "Rand seed for cross-validation");
-    SetParameterInt("gmm.srand", 0);
-    SetParameterDescription("gmm.srand", "Rand seed for cross-validation.");
+    AddParameter(ParameterType_Int, "gmm.seed", "Rand seed for cross-validation");
+    SetParameterInt("gmm.seed", 0);
+    SetParameterDescription("gmm.seed", "Rand seed for cross-validation.");
 
     // Doc example parameter settings
     SetDocExampleParameterValue("io.il", "QB_1_ortho.tif");
@@ -184,7 +184,7 @@ private:
     SetDocExampleParameterValue("gmm.tau", "10 100 1000");
     SetDocExampleParameterValue("gmm.ncv", "5");
     SetDocExampleParameterValue("gmm.metric", "kappa");
-    SetDocExampleParameterValue("gmm.srand", "0");
+    SetDocExampleParameterValue("gmm.seed", "0");
     SetDocExampleParameterValue("io.out", "svmModelQB1.txt");
     SetDocExampleParameterValue("io.confmatout", "svmConfusionMatrixQB1.csv");
   }
@@ -436,7 +436,7 @@ private:
         std::vector<double> tauGrid(tauGridString.size());
         for (unsigned i = 0; i < tauGridString.size(); ++i)
           tauGrid[i] = atof(tauGridString[i].c_str());
-        GMMClassifier->TrainTau(tauGrid,GetParameterInt("gmm.ncv"),GetParameterString("gmm.metric"),GetParameterInt("gmm.srand"));
+        GMMClassifier->TrainTau(tauGrid,GetParameterInt("gmm.ncv"),GetParameterString("gmm.metric"),GetParameterInt("gmm.seed"));
 
         std::ostringstream os1;
         for (unsigned i = 0; i < tauGrid.size(); ++i)

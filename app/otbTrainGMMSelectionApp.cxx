@@ -179,9 +179,9 @@ private:
     SetDefaultParameterInt("gmm.best", 1);
     SetParameterDescription("gmm.best","If 1, choose optimal set of features after selection (default). If 0, all selected features are used.");
 
-    AddParameter(ParameterType_Int, "gmm.srand", "Rand seed for cross-validation");
-    SetParameterInt("gmm.srand", 0);
-    SetParameterDescription("gmm.srand", "Rand seed for cross-validation.");
+    AddParameter(ParameterType_Int, "gmm.seed", "Rand seed for cross-validation");
+    SetParameterInt("gmm.seed", 0);
+    SetParameterDescription("gmm.seed", "Rand seed for cross-validation.");
 
     // Doc example parameter settings
     SetDocExampleParameterValue("io.il", "QB_1_ortho.tif");
@@ -197,7 +197,7 @@ private:
     SetDocExampleParameterValue("gmm.crit", "jm");
     SetDocExampleParameterValue("gmm.ncv", "5");
     SetDocExampleParameterValue("gmm.best", "1");
-    SetDocExampleParameterValue("gmm.srand", "0");
+    SetDocExampleParameterValue("gmm.seed", "0");
     SetDocExampleParameterValue("io.out", "svmModelQB1.txt");
     SetDocExampleParameterValue("io.confmatout", "svmConfusionMatrixQB1.csv");
   }
@@ -442,7 +442,7 @@ private:
     GMMClassifier->Train();
 
     GMMClassifier->SetEnableOptimalSet((bool) GetParameterInt("gmm.best"));
-    GMMClassifier->Selection(GetParameterString("gmm.method"),GetParameterString("gmm.crit"),GetParameterInt("gmm.varnb"),GetParameterInt("gmm.ncv"),GetParameterInt("gmm.srand"));
+    GMMClassifier->Selection(GetParameterString("gmm.method"),GetParameterString("gmm.crit"),GetParameterInt("gmm.varnb"),GetParameterInt("gmm.ncv"),GetParameterInt("gmm.seed"));
 
     // update reporter
     dummyFilter->UpdateProgress(1.0f);

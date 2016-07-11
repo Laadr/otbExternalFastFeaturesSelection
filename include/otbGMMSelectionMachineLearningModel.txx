@@ -156,6 +156,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         {
           m_SubmodelCv[j]->AddInstanceToFold(Superclass::GetInputListSample(), indices,j*nbSplFold,Superclass::m_NbSpl[i]);
           m_SubmodelCv[j]->AddNbSpl(Superclass::m_NbSpl[i] - j*nbSplFold);
+          nbSplFold = Superclass::m_NbSpl[i] - j*nbSplFold;
         }
         else
         {

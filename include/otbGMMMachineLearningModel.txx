@@ -113,6 +113,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
         for (int k = j*nbSplFold; k < m_NbSpl[i]; ++k)
           folds[j][folds[j].size()-1]->AddInstance( indices[k] );
         submodelCv[j]->AddNbSpl(m_NbSpl[i] - j*nbSplFold);
+        nbSplFold = m_NbSpl[i] - j*nbSplFold;
       }
       else
       {
