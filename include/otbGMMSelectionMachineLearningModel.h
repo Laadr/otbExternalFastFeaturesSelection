@@ -44,11 +44,11 @@ public:
   /** Define accessors */
   itkSetMacro(EnableOptimalSet, bool);
   itkGetMacro(EnableOptimalSet, bool);
-  itkSetMacro(VarNbPrediction, int);
   itkGetMacro(VarNbPrediction, int);
   ClassSamplePointer GetClassSamples(int classId);
   std::vector<int> GetSelectedVar();
   void SetSelectedVar(std::vector<int> varSubSet, int recompute=1);
+  void SetVarNbPrediction(int varNb);
   std::vector<double> GetCriterionBestValues();
 
   /** Extract a vector from a vector by indexes */
@@ -117,6 +117,9 @@ protected:
 
   /** Vector of selected variables */
   std::vector<int> m_SelectedVar;
+
+  /** Vector of best sets of selected variables at each step (necessary due to SFFS) */
+  std::vector<std::vector<int> > m_BestSets;
 
   /** Vector of criterion function values for each step of selection */
   std::vector<RealType> m_CriterionBestValues;

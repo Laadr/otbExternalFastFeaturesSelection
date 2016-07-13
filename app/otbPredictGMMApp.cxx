@@ -76,6 +76,9 @@ private:
     AddChoice("modeltype.selection", "GMM with features selection");
     SetParameterDescription("modeltype", "Type of trained GMM type. If model is trained with TrainGMMApp, use basic and, if trained with TrainGMMSelectionApp, used selection.");
 
+    AddParameter(ParameterType_Int, "varnb", "New number of variables for prediction. (Ignore number of variables chosen during training)");
+    SetParameterDescription("varnb", "New number of variables for prediction. (Ignore number of variables chosen during training)");
+    MandatoryOff("varnb");
 
     AddParameter(ParameterType_InputFilename, "imstat", "Statistics file");
     SetParameterDescription("imstat", "A XML file containing mean and standard deviation to center and reduce samples before classification (produced by ComputeImagesStatistics application).");
@@ -114,14 +117,30 @@ private:
     otbAppLogINFO("Loading model");
 
     typedef MachineLearningModel<ValueType, LabelType> ModelType;
-    ModelType::Pointer GMMClassifier;
-    if (GetParameterString("modeltype").compare("basic") == 0)
-      GMMClassifier = GMMMachineLearningModel<ValueType, LabelType>::New();
-    else //if (GetParameterString("modeltype").compare("selection") == 0)
-      GMMClassifier = GMMSelectionMachineLearningModel<ValueType, LabelType>::New();
+    typedef GMMMachineLearningModel<ValueType, LabelType> GMMModelType;
+    typedef GMMSelectionMachineLearningModel<ValueType, LabelType> GMMSelectionModelType;
 
-    GMMClassifier->Load(GetParameterString("model"));
+    GMMModelType::Pointer GMMClassifier                   = GMMMachineLearningModel<ValueType, LabelType>::New();
+    GMMSelectionModelType::Pointer GMMSelectionClassifier = GMMSelectionMachineLearningModel<ValueType, LabelType>::New();
+    if (GetParameterString("modeltype").compare("basic") == 0)
+      GMMClassifier->Load(GetParameterString("model"));
+    else //if (GetParameterString("modeltype").compare("selection") == 0)
+      GMMSelectionClassifier->Load(GetParameterString("model"));
+
     otbAppLogINFO("Model loaded");
+
+    // Set number of variables
+    if(IsParameterEnabled("varnb") && (GetParameterString("modeltype").compare("selection") == 0))
+    {
+      if (GetParameterInt("varnb")<0)
+      {
+        otbAppLogINFO("Warning: varnb has to be non-negative. Used default number instead.");
+      }
+      else
+      {
+        GMMSelectionClassifier->SetVarNbPrediction(GetParameterInt("varnb"));
+      }
+    }
 
     // Normalize input image (optional)
     StatisticsReader::Pointer  statisticsReader = StatisticsReader::New();
@@ -131,7 +150,12 @@ private:
 
     // Classify
     m_ClassificationFilter = ClassificationFilterType::New();
-    m_ClassificationFilter->SetModel(GMMClassifier);
+    ModelType::Pointer Classifier;
+    if (GetParameterString("modeltype").compare("basic") == 0)
+      Classifier = GMMClassifier;
+    else //if (GetParameterString("modeltype").compare("selection") == 0)
+      Classifier = GMMSelectionClassifier;
+    m_ClassificationFilter->SetModel(Classifier);
 
     // Normalize input image if asked
     if(IsParameterEnabled("imstat"))
@@ -156,7 +180,6 @@ private:
       m_ClassificationFilter->SetInput(inImage);
     }
 
-
     if(IsParameterEnabled("mask"))
     {
       otbAppLogINFO("Using input mask");
@@ -171,9 +194,8 @@ private:
     // output confidence map
     if (IsParameterEnabled("confmap") && HasValue("confmap"))
     {
-      std::cout << HasValue("confmap") << std::endl;
       m_ClassificationFilter->SetUseConfidenceMap(true);
-      if (GMMClassifier->HasConfidenceIndex())
+      if (Classifier->HasConfidenceIndex())
       {
         SetParameterOutputImage<ConfidenceImageType>("confmap",m_ClassificationFilter->GetOutputConfidence());
       }

@@ -207,10 +207,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   }
 
   // Precomputation of terms use for prediction
-  Superclass::m_Q.clear();
-  Superclass::m_EigenValues.clear();
-  Superclass::m_CstDecision.clear();
-  Superclass::m_LambdaQ.clear();
+  std::vector<MatrixType>().swap(Superclass::m_Q);
+  std::vector<MatrixType>().swap(Superclass::m_LambdaQ);
+  std::vector<VectorType>().swap(Superclass::m_EigenValues);
+  std::vector<RealType>().swap(Superclass::m_CstDecision);
 
   Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(m_VarNbPrediction,m_VarNbPrediction));
   Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
@@ -300,6 +300,14 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     currentSelectedVarNb++;
   }
+
+  // To be compatible with SFFS and save
+  m_BestSets.resize(m_SelectedVar.size());
+  for (int i = 0; i < m_SelectedVar.size(); ++i)
+  {
+    std::vector<int> v(m_SelectedVar.begin(),m_SelectedVar.begin()+i+1);
+    m_BestSets[i] = v;
+  }
 }
 
 /** Perform sequential floating forward selection */
@@ -317,7 +325,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   for (int i = 0; i < Superclass::m_FeatNb; ++i)
     variablesPool[i] = i;
 
-  std::vector<std::vector<int> > bestSets;
+  m_BestSets.clear();
   std::vector<std::vector<int> > bestSetsPools;
   bool flagBacktrack;
 
@@ -347,7 +355,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     if ((currentSelectedVarNb <= m_CriterionBestValues.size()) && (criterionVal[argMaxValue] < m_CriterionBestValues[currentSelectedVarNb-1]))
     {
-      m_SelectedVar = bestSets[currentSelectedVarNb-1];
+      m_SelectedVar = m_BestSets[currentSelectedVarNb-1];
       variablesPool = bestSetsPools[currentSelectedVarNb-1];
     }
     else
@@ -366,13 +374,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       if (currentSelectedVarNb > m_CriterionBestValues.size())
       {
         m_CriterionBestValues.push_back(criterionVal[argMaxValue]);
-        bestSets.push_back(m_SelectedVar);
+        m_BestSets.push_back(m_SelectedVar);
         bestSetsPools.push_back(variablesPool);
       }
       else
       {
         m_CriterionBestValues[currentSelectedVarNb-1] = criterionVal[argMaxValue];
-        bestSets[currentSelectedVarNb-1] = m_SelectedVar;
+        m_BestSets[currentSelectedVarNb-1] = m_SelectedVar;
         bestSetsPools[currentSelectedVarNb-1] = variablesPool;
       }
 
@@ -408,7 +416,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
           m_SelectedVar.erase(m_SelectedVar.begin()+argMaxValue);
 
           m_CriterionBestValues[currentSelectedVarNb-1] = criterionValBackward[argMaxValue];
-          bestSets[currentSelectedVarNb-1] = m_SelectedVar;
+          m_BestSets[currentSelectedVarNb-1] = m_SelectedVar;
           bestSetsPools[currentSelectedVarNb-1] = variablesPool;
         }
         else
@@ -924,12 +932,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   else
   {
     // Convert input data
-    VectorType input(Superclass::m_FeatNb);
     VectorType subInput(m_VarNbPrediction);
-    vnl_copy(vnl_vector<InputValueType>(rawInput.GetDataPointer(), Superclass::m_FeatNb),input);
-
     for (int i = 0; i < m_VarNbPrediction; ++i)
-      subInput[i] = input[m_SelectedVar[i]];
+      subInput[i] = rawInput[m_SelectedVar[i]];
 
     // Compute decision function
     std::vector<RealType> decisionFct(Superclass::m_CstDecision);
@@ -952,14 +957,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     // Compute confidence (optional)
     if (quality != NULL)
     {
-      if (!this->HasConfidenceIndex())
-      {
-        itkExceptionMacro("Confidence index not available for this classifier !");
-      }
-      else
-      {
-        *quality = (ConfidenceValueType) ( decisionFct[argmin] / std::accumulate(decisionFct.begin(),decisionFct.end(),0) );
-      }
+      RealType prob = 0;
+      for (int i = 0; i < decisionFct.size(); ++i)
+        prob += exp(-0.5*(decisionFct[i]-decisionFct[argmin]));
+      *quality = (ConfidenceValueType) ( 1 / prob);
     }
 
     return res;
@@ -992,10 +993,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     ofs << "nbSelectedVarToUse: " << m_VarNbPrediction << std::endl;
 
     // Store vector of selected features
-    ofs << "selectedVar:" << std::endl;
-    for (int i = 0; i < m_SelectedVar.size(); ++i)
-      ofs << m_SelectedVar[i] << " ";
-    ofs << std::endl;
+    ofs << "bestSelectedVarSetsForEachNbOfSelectedVar:" << std::endl;
+    for (int i = 0; i < m_BestSets.size(); ++i)
+    {
+      for (int j = 0; j < m_BestSets[i].size(); ++j)
+        ofs << m_BestSets[i][j] << " ";
+      ofs << std::endl;
+    }
 
     // Set writing precision (need c++11 to not hardcode value of double precision)
     // ofs.precision(std::numeric_limits<double>::max_digits10);
@@ -1005,16 +1009,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     ofs << "criterionfctEvolution:" << std::endl;
     for (int i = 0; i < m_SelectedVar.size(); ++i)
       ofs << i+1 << " " << m_CriterionBestValues[i] << std::endl;
-
-    // Store vector of size C containing the mean vector of each class for the selected variables (one by line)
-    ofs << "reducedMeanVectors:" << std::endl;
-    for (int i = 0; i < Superclass::m_ClassNb; ++i)
-    {
-      for (int j = 0; j < m_SubMeans[i].size(); ++j)
-        ofs << m_SubMeans[i][j] << " ";
-
-      ofs << std::endl;
-    }
 
     ofs.close();
   }
@@ -1048,15 +1042,17 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     ifs >> m_VarNbPrediction;
 
     // Allocation
-    m_SelectedVar.resize(selectedVarNb);
+    m_BestSets.resize(selectedVarNb);
     m_CriterionBestValues.resize(selectedVarNb);
-    m_Logprop.resize(Superclass::m_ClassNb);
-    m_SubMeans.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
 
     // Load selected variables
     ifs >> dump;
     for (int i = 0; i < selectedVarNb; ++i)
-      ifs >> m_SelectedVar[i];
+    {
+      m_BestSets[i].resize(i+1);
+      for (int j = 0; j < i+1; ++j)
+        ifs >> m_BestSets[i][j];
+    }
 
     // Load criterion function values
     ifs >> dump;
@@ -1066,11 +1062,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       ifs >> m_CriterionBestValues[i];
     }
 
-    // Load subMean
-    ifs >> dump;
-    for (int i = 0; i < Superclass::m_ClassNb; ++i)
-      for (int j = 0; j < m_VarNbPrediction; ++j)
-        ifs >> m_SubMeans[i][j];
+    // Variables to use for prediction
+    SetSelectedVar(m_BestSets[m_BestSets.size()-1]);
+    SetSelectedVar(m_BestSets[m_VarNbPrediction-1]);
   }
 
   ifs.close();
@@ -1110,24 +1104,31 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::SetSelectedVar(std::vector<int> varSubSet, int recompute)
 {
-  m_SelectedVar = varSubSet;
+  m_VarNbPrediction = varSubSet.size();
+  std::vector<int>().swap(m_SelectedVar);
+  m_SelectedVar.resize(m_VarNbPrediction);
+  for (int i = 0; i < m_VarNbPrediction; ++i)
+    m_SelectedVar[i] = varSubSet[i];
 
   if (recompute == 1)
   {
-    int selectedVarNb = m_SelectedVar.size();
-
     // Precomputation of terms use for prediction //
     Superclass::m_Q.clear();
+    Superclass::m_LambdaQ.clear();
     Superclass::m_EigenValues.clear();
     Superclass::m_CstDecision.clear();
-    Superclass::m_LambdaQ.clear();
 
-    Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(selectedVarNb,selectedVarNb));
-    Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(selectedVarNb));
-    MatrixType subCovariance(selectedVarNb,selectedVarNb);
+    std::vector<MatrixType>().swap(Superclass::m_Q);
+    std::vector<MatrixType>().swap(Superclass::m_LambdaQ);
+    std::vector<VectorType>().swap(Superclass::m_EigenValues);
+    std::vector<RealType>().swap(Superclass::m_CstDecision);
+
+    Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(m_VarNbPrediction,m_VarNbPrediction));
+    Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
+    MatrixType subCovariance(m_VarNbPrediction,m_VarNbPrediction);
     Superclass::m_CstDecision.resize(Superclass::m_ClassNb,0);
-    Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(selectedVarNb,selectedVarNb));
-    m_SubMeans.resize(Superclass::m_ClassNb, VectorType(selectedVarNb));
+    Superclass::m_LambdaQ.resize(Superclass::m_ClassNb, MatrixType(m_VarNbPrediction,m_VarNbPrediction));
+    m_SubMeans.resize(Superclass::m_ClassNb, VectorType(m_VarNbPrediction));
 
     RealType lambda;
     for ( unsigned int i = 0; i < Superclass::m_ClassNb; ++i )
@@ -1136,21 +1137,37 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[i],subCovariance);
       Superclass::Decomposition(subCovariance, Superclass::m_Q[i], Superclass::m_EigenValues[i]);
 
-      // Extract mean corresponding to slected variables
+      // Extract mean corresponding to selected variables
       ExtractVector(m_SelectedVar,Superclass::m_Means[i],m_SubMeans[i]);
 
       // Precompute lambda^(-1/2) * Q and log(det lambda)
-      for (int j = 0; j < selectedVarNb; ++j)
+      for (int j = 0; j < m_VarNbPrediction; ++j)
       {
         lambda = 1 / sqrt(Superclass::m_EigenValues[i][j]);
+
         // Transposition and row multiplication at the same time
         Superclass::m_LambdaQ[i].set_row(j,lambda*Superclass::m_Q[i].get_column(j));
-
         Superclass::m_CstDecision[i] += log(Superclass::m_EigenValues[i][j]);
       }
 
       Superclass::m_CstDecision[i] += -2*log(Superclass::m_Proportion[i]);
     }
+  }
+}
+
+template <class TInputValue, class TTargetValue>
+void
+GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
+::SetVarNbPrediction(int varNb)
+{
+  if (varNb <= m_BestSets.size())
+  {
+    SetSelectedVar(m_BestSets[varNb-1]);
+  }
+  else
+  {
+    std::cout << "Warning: Attempt to use more features than the number features identified during selection.\n Number of features used for prediction is set to max (" << m_BestSets.size() << ")" << std::endl;
+    SetSelectedVar(m_BestSets[m_BestSets.size()-1]);
   }
 }
 

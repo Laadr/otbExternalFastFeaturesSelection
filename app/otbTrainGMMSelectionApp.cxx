@@ -175,9 +175,9 @@ private:
     SetDefaultParameterInt("gmm.ncv", 5);
     SetParameterDescription("gmm.ncv", "Number of folds for cross-validation to estimate the classification rate when selecting variables (default = 5). It is ussed only with Jeffries-Matusita distance and Kullback–Leibler divergence.");
 
-    AddParameter(ParameterType_Int, "gmm.best", "If 1, choose optimal set of features after selection. If 0, all selected features are used");
+    AddParameter(ParameterType_Int, "gmm.best", "If 1, choose optimal set of features based on criterion function after selection. If 0, all selected features are used");
     SetDefaultParameterInt("gmm.best", 1);
-    SetParameterDescription("gmm.best","If 1, choose optimal set of features after selection (default). If 0, all selected features are used.");
+    SetParameterDescription("gmm.best","If 1, choose optimal set of features based on criterion function after selection (default). If 0, all selected features are used.");
 
     AddParameter(ParameterType_Int, "gmm.seed", "Rand seed for cross-validation");
     SetParameterInt("gmm.seed", 0);

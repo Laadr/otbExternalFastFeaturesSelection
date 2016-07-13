@@ -435,7 +435,10 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     }
     else
     {
-      *quality = (ConfidenceValueType) ( decisionFct[argmin] / std::accumulate(decisionFct.begin(),decisionFct.end(),0) );
+      RealType prob = 0;
+      for (int i = 0; i < decisionFct.size(); ++i)
+        prob += exp(-0.5*(decisionFct[i]-decisionFct[argmin]));
+      *quality = (ConfidenceValueType) ( 1 / prob);
     }
   }
 
