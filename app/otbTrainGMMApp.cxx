@@ -420,6 +420,12 @@ private:
     GMMClassifier->SetInputListSample(trainingListSample);
     GMMClassifier->SetTargetListSample(trainingLabeledListSample);
 
+    // Setup fake reporter
+    RGBAPixelConverter<int,int>::Pointer dummyFilter = RGBAPixelConverter<int,int>::New();
+    dummyFilter->SetProgress(0.0f);
+    this->AddProcess(dummyFilter,"Train...");
+    dummyFilter->InvokeEvent(itk::StartEvent());
+
     GMMClassifier->Train();
 
     if (IsParameterEnabled("gmm.tau"))
@@ -451,6 +457,10 @@ private:
       }
     }
 
+    // update reporter
+    dummyFilter->UpdateProgress(1.0f);
+    dummyFilter->InvokeEvent(itk::EndEvent());
+
     otbAppLogINFO("Selected tau: " << GMMClassifier->GetTau());
 
     GMMClassifier->Save(GetParameterString("io.out"));
@@ -475,7 +485,6 @@ private:
     }
 
     // Setup fake reporter
-    RGBAPixelConverter<int,int>::Pointer dummyFilter = RGBAPixelConverter<int,int>::New();
     dummyFilter->SetProgress(0.0f);
     this->AddProcess(dummyFilter,"Classify...");
     dummyFilter->InvokeEvent(itk::StartEvent());
