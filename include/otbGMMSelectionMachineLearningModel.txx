@@ -1063,7 +1063,6 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     }
 
     // Variables to use for prediction
-    SetSelectedVar(m_BestSets[m_BestSets.size()-1]);
     SetSelectedVar(m_BestSets[m_VarNbPrediction-1]);
   }
 
@@ -1117,11 +1116,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     Superclass::m_LambdaQ.clear();
     Superclass::m_EigenValues.clear();
     Superclass::m_CstDecision.clear();
-
-    std::vector<MatrixType>().swap(Superclass::m_Q);
-    std::vector<MatrixType>().swap(Superclass::m_LambdaQ);
-    std::vector<VectorType>().swap(Superclass::m_EigenValues);
-    std::vector<RealType>().swap(Superclass::m_CstDecision);
+    m_SubMeans.clear();
 
     Superclass::m_Q.resize(Superclass::m_ClassNb,MatrixType(m_VarNbPrediction,m_VarNbPrediction));
     Superclass::m_EigenValues.resize(Superclass::m_ClassNb,VectorType(m_VarNbPrediction));
