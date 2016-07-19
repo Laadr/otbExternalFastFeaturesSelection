@@ -4,18 +4,19 @@ otb_module_test()
 #changed when this module is renamed.
 
 set(${otb-module}Tests
-  otbEmptyTestDriver.cxx
-  otbEmptyTest.cxx
+  otbFastFeatureSelectionTestDriver.cxx
+  testSaveLoad.cxx
+  testSelection.cxx
 )
 
-add_executable(otbEmptyTestDriver ${${otb-module}Tests})
-target_link_libraries(otbEmptyTestDriver ${${otb-module}-Test_LIBRARIES})
-otb_module_target_label(otbEmptyTestDriver)
+add_executable(otbFastFeatureSelectionTestDriver ${${otb-module}Tests})
+target_link_libraries(otbFastFeatureSelectionTestDriver ${${otb-module}-Test_LIBRARIES})
+otb_module_target_label(otbFastFeatureSelectionTestDriver)
 
-otb_add_test(NAME otbDeleteMeEmptyTest
-  COMMAND otbEmptyTestDriver otbEmptyTest "argument1" "..." )
+otb_add_test(NAME TvtestSaveLoad
+  COMMAND otbFastFeatureSelectionTestDriver testSaveLoad
+  )
 
-#test application
-otb_test_application(NAME otbEmptyAppTest
-                     APP  EmptyApp
-                     )
+otb_add_test(NAME TvtestSelection
+  COMMAND otbFastFeatureSelectionTestDriver testSelection
+  )
