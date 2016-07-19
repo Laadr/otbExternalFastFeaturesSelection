@@ -51,12 +51,12 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     m_CstDecision.assign(m_ClassNb,0);
     m_LambdaQ.resize(m_ClassNb, MatrixType(m_FeatNb,m_FeatNb));
 
-    for (int i = 0; i < m_ClassNb; ++i)
+    for (unsigned int i = 0; i < m_ClassNb; ++i)
     {
-      for (int j = 0; j < m_FeatNb; ++j)
+      for (unsigned int j = 0; j < m_FeatNb; ++j)
       {
         lambda = 1 / sqrt(m_EigenValues[i][j] + m_Tau);
-        for (int k = 0; k < m_FeatNb; ++k)
+        for (unsigned int k = 0; k < m_FeatNb; ++k)
           m_LambdaQ[i].set_row(j,lambda*m_Q[i].get_column(j));
 
         m_CstDecision[i] += log(m_EigenValues[i][j] + m_Tau);
@@ -153,7 +153,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   TargetSampleType res;
   m_RateGridsearch.resize(tauGrid.size());
 
-  for (int j = 0; j < tauGrid.size(); ++j)
+  for (unsigned int j = 0; j < tauGrid.size(); ++j)
   {
     typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
     typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
@@ -230,11 +230,11 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 ::UpdateProportion()
 {
   unsigned totalNb = 0;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     totalNb += m_NbSpl[i];
 
   m_Proportion.resize(m_ClassNb);
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     m_Proportion[i] = (double) m_NbSpl[i] / (double) totalNb;
 }
 
@@ -247,7 +247,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   m_Q.resize(m_ClassNb,MatrixType(m_FeatNb,m_FeatNb));
   m_EigenValues.resize(m_ClassNb,VectorType(m_FeatNb));
 
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
     // Decompose covariance matrix in eigenvalues/eigenvectors
     Decomposition(m_Covariances[i], m_Q[i], m_EigenValues[i]);
@@ -289,7 +289,7 @@ void GMMMachineLearningModel<TInputValue,TTargetValue>
   vnl_symmetric_eigensystem_compute( inputMatrix, outputMatrix, eigenValues );
 
   // Replace eigenvalues lower than min precision by min precision
-  for (int i = 0; i < eigenValues.size(); ++i)
+  for (unsigned int i = 0; i < eigenValues.size(); ++i)
   {
     if (eigenValues[i] < std::numeric_limits<RealType>::epsilon())
       eigenValues[i] = std::numeric_limits<RealType>::epsilon();
@@ -476,7 +476,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of nb of samples
   ofs << "SamplesNb:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     ofs << m_NbSpl[i] << " ";
   ofs << std::endl;
 
@@ -486,13 +486,13 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of proportion of samples
   ofs << "Proportion:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     ofs << m_Proportion[i] << " ";
   ofs << std::endl;
 
   // Store vector of mean vector (one by line)
   ofs << "MeanVector:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
     for (int j = 0; j < m_FeatNb; ++j)
       ofs << m_Means[i][j] << " ";
@@ -502,7 +502,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of covariance matrices (one by line)
   ofs << "CovarianceMatrices:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
     for (int j = 0; j < m_FeatNb; ++j)
     {
@@ -514,9 +514,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of eigenvalues vector (one by line)
   ofs << "Eigenvalues:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_EigenValues[i].size(); ++j)
+    for (unsigned int j = 0; j < m_EigenValues[i].size(); ++j)
       ofs << m_EigenValues[i][j] << " ";
 
     ofs << std::endl;
@@ -524,11 +524,11 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of eigenvectors matrices (one by line)
   ofs << "Eigenvectors:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_Q[i].rows(); ++j)
+    for (unsigned int j = 0; j < m_Q[i].rows(); ++j)
     {
-      for (int k = 0; k < m_Q[i].cols(); ++k)
+      for (unsigned int k = 0; k < m_Q[i].cols(); ++k)
         ofs << m_Q[i](j,k) << " ";
     }
     ofs << std::endl;
@@ -536,11 +536,11 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
   ofs << "LambdaQ:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
-    for (int j = 0; j < m_LambdaQ[i].rows(); ++j)
+    for (unsigned int j = 0; j < m_LambdaQ[i].rows(); ++j)
     {
-      for (int k = 0; k < m_LambdaQ[i].cols(); ++k)
+      for (unsigned int k = 0; k < m_LambdaQ[i].cols(); ++k)
         ofs << m_LambdaQ[i](j,k) << " ";
     }
     ofs << std::endl;
@@ -548,7 +548,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of scalar (logdet cov - 2*log proportion)
   ofs << "CstDecision:" << std::endl;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     ofs << m_CstDecision[i] << " ";
   ofs << std::endl;
 
@@ -594,7 +594,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   ifs >> dump;
   TargetValueType lab;
   int idLab;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
   {
     ifs >> lab;
     ifs >> idLab;
@@ -604,50 +604,50 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Load vector of nb of samples
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     ifs >> m_NbSpl[i];
 
   // Load vector of proportion of samples
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     ifs >> m_Proportion[i];
 
   // Load vector of mean vector (one by line)
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < m_FeatNb; ++j)
       ifs >> m_Means[i][j];
 
   // Load vector of covariance matrices (one by line)
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < m_FeatNb; ++j)
       for (int k = 0; k < m_FeatNb; ++k)
         ifs >> m_Covariances[i](j,k);
 
   // Load vector of eigenvalues vector (one by line)
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < decompVarNb; ++j)
       ifs >> m_EigenValues[i][j];
 
   // Load vector of eigenvectors matrices (one by line)
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < decompVarNb; ++j)
       for (int k = 0; k < decompVarNb; ++k)
         ifs >> m_Q[i](j,k);
 
   // Load vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     for (int j = 0; j < decompVarNb; ++j)
       for (int k = 0; k < decompVarNb; ++k)
         ifs >> m_LambdaQ[i](j,k);
 
   // Load vector of scalar (logdet cov - 2*log proportion)
   ifs >> dump;
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned int i = 0; i < m_ClassNb; ++i)
     ifs >> m_CstDecision[i];
 
   ifs.close();
