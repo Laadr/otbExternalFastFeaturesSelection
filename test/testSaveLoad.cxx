@@ -13,7 +13,7 @@
 #include "otbVectorData.h"
 #include "otbVectorDataFileReader.h"
 
-int main(int argc, char const *argv[])
+int testSaveLoad(int argc, char * argv[])
 {
 
     int nbSamples                   = 600;
@@ -115,12 +115,12 @@ int main(int argc, char const *argv[])
     if ( ((float) TP / nbSamples) > 0.9)
     {
         std::cout << "Model save and load succesfully" << std::endl;
-        return 0;
+        return EXIT_SUCCESS;
     }
     else
     {
         std::cout << "Overall accuracy unexpectedly low. Possible problem with save/load." << std::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
 
 }

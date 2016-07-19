@@ -13,7 +13,7 @@
 #include "otbVectorData.h"
 #include "otbVectorDataFileReader.h"
 
-int main(int argc, char const *argv[])
+int testSelection(int argc, char * argv[])
 {
 
     int nbSamples                   = 600;
@@ -113,12 +113,10 @@ int main(int argc, char const *argv[])
              selectedInd[i] != meaningfullVar[5] )
         {
             std::cout << "Wrong variables selected. Possible problem with in selection process." << std::endl;
-            return 1;
+            return EXIT_FAILURE;
         }
     }
 
     std::cout << "Successful selection." << std::endl;
-    return 0;
-
-
+    return EXIT_SUCCESS;
 }

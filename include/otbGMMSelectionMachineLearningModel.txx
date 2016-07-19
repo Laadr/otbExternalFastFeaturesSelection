@@ -37,7 +37,7 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractVector(const std::vector<int> & indexes, const VectorType& input, VectorType& ouput)
 {
-  for (int i = 0; i < indexes.size(); ++i)
+  for (unsigned int i = 0; i < indexes.size(); ++i)
     ouput[i] = input[indexes[i]];
 }
 
@@ -47,7 +47,7 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput)
 {
-  for (int i = 0; i < indexes.size(); ++i)
+  for (unsigned int i = 0; i < indexes.size(); ++i)
     ouput(i,0) = input[indexes[i]];
 }
 
@@ -57,7 +57,7 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput)
 {
-  for (int i = 0; i < indexesRow.size(); ++i)
+  for (unsigned int i = 0; i < indexesRow.size(); ++i)
     ouput(i,0) = input(indexesRow[i],colIndex);
 }
 
@@ -67,10 +67,10 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& ouput)
 {
-  for (int i = 0; i < indexes.size(); ++i)
+  for (unsigned int i = 0; i < indexes.size(); ++i)
   {
     ouput(i,i) = input(indexes[i],indexes[i]);
-    for (int j = i+1; j < indexes.size(); ++j)
+    for (unsigned int j = i+1; j < indexes.size(); ++j)
     {
       ouput(i,j) = input(indexes[i],indexes[j]);
       ouput(j,i) = ouput(i,j);
@@ -90,7 +90,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
   m_Fold.push_back( ClassSampleType::New() );
   m_Fold[m_Fold.size()-1]->SetSample( samples );
-  for (int i = start; i < end; ++i)
+  for (unsigned int i = start; i < end; ++i)
     m_Fold[m_Fold.size()-1]->AddInstance( input[i] );
 }
 
@@ -101,12 +101,12 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::UpdateProportion()
 {
   unsigned totalNb = 0;
-  for (int i = 0; i < Superclass::m_ClassNb; ++i)
+  for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
     totalNb += Superclass::m_NbSpl[i];
 
   Superclass::m_Proportion.resize(Superclass::m_ClassNb);
   m_Logprop.resize(Superclass::m_ClassNb);
-  for (int i = 0; i < Superclass::m_ClassNb; ++i)
+  for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
   {
     Superclass::m_Proportion[i] = (double) Superclass::m_NbSpl[i] / (double) totalNb;
     m_Logprop[i]                = 2 * (RealType) log(Superclass::m_Proportion[i]);
