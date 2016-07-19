@@ -73,6 +73,7 @@ public:
   itkGetMacro(FeatNb, unsigned int);
   itkGetMacro(Tau, RealType);
   itkGetMacro(RateGridsearch, std::vector<RealType>);
+  itkGetMacro(NbSpl, std::vector<unsigned>);
   void SetMapOfClasses(const std::map<TargetValueType, int>& mapOfClasses);
   void SetMapOfIndices(const std::map<int, TargetValueType>& mapOfIndices);
 
