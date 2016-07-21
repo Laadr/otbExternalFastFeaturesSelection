@@ -152,8 +152,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   typedef ConfusionMatrixCalculator< TargetListSampleType, TargetListSampleType > ConfusionMatrixType;
   TargetSampleType res;
   m_RateGridsearch.resize(tauGrid.size());
+  std::vector<RealType>::iterator outGridsearchIt = m_RateGridsearch.begin();
 
-  for (unsigned int j = 0; j < tauGrid.size(); ++j)
+  for (std::vector<RealType>::iterator tauIt = tauGrid.begin(); tauIt != tauGrid.end(); ++tauIt, ++outGridsearchIt)
   {
     typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
     typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
@@ -162,7 +163,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     // Classify with all submodels for a given tau
     for (int i = 0; i < nfold; ++i)
     {
-      submodelCv[i]->SetTau((RealType) tauGrid[j]);
+      submodelCv[i]->SetTau(*tauIt);
 
       for (unsigned int c = 0; c < m_ClassNb; ++c)
       {
@@ -198,11 +199,11 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
     if (criterion.compare("accuracy") == 0)
     {
-      m_RateGridsearch[j] = (RealType) confM->GetOverallAccuracy();
+      *outGridsearchIt = (RealType) confM->GetOverallAccuracy();
     }
     else if (criterion.compare("kappa") == 0)
     {
-      m_RateGridsearch[j] = (RealType) confM->GetKappaIndex();
+      *outGridsearchIt = (RealType) confM->GetKappaIndex();
     }
     else if (criterion.compare("f1mean") == 0)
     {
@@ -210,7 +211,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
       RealType meanFscores = 0;
       for (int i = 0; i < Fscores.Size(); ++i)
         meanFscores += (RealType) Fscores[i];
-      m_RateGridsearch[j] = meanFscores/m_ClassNb;
+      *outGridsearchIt = meanFscores/m_ClassNb;
     }
   }
 
@@ -289,10 +290,10 @@ void GMMMachineLearningModel<TInputValue,TTargetValue>
   vnl_symmetric_eigensystem_compute( inputMatrix, outputMatrix, eigenValues );
 
   // Replace eigenvalues lower than min precision by min precision
-  for (unsigned int i = 0; i < eigenValues.size(); ++i)
+  for (VectorType::iterator it = eigenValues.begin(); it != eigenValues.end(); ++it)
   {
-    if (eigenValues[i] < std::numeric_limits<RealType>::epsilon())
-      eigenValues[i] = std::numeric_limits<RealType>::epsilon();
+    if (*it < std::numeric_limits<RealType>::epsilon())
+      *it = std::numeric_limits<RealType>::epsilon();
   }
 }
 
@@ -436,8 +437,8 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     else
     {
       RealType prob = 0;
-      for (int i = 0; i < decisionFct.size(); ++i)
-        prob += exp(-0.5*(decisionFct[i]-decisionFct[argmin]));
+      for (std::vector<RealType>::iterator decisionIt = decisionFct.begin(); decisionIt != decisionFct.end(); ++decisionIt)
+        prob += exp(-0.5*( *decisionIt - decisionFct[argmin] ));
       *quality = (ConfidenceValueType) ( 1 / prob);
     }
   }
@@ -476,8 +477,8 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of nb of samples
   ofs << "SamplesNb:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    ofs << m_NbSpl[i] << " ";
+  for (std::vector<unsigned>::iterator it = m_NbSpl.begin(); it != m_NbSpl.end(); ++it)
+    ofs << *it << " ";
   ofs << std::endl;
 
   // Set writing precision (need c++11 to not hardcode value of double precision)
@@ -486,70 +487,70 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Store vector of proportion of samples
   ofs << "Proportion:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    ofs << m_Proportion[i] << " ";
+  for (std::vector<double>::iterator it = m_Proportion.begin(); it != m_Proportion.end(); ++it)
+    ofs << *it << " ";
   ofs << std::endl;
 
   // Store vector of mean vector (one by line)
   ofs << "MeanVector:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<VectorType>::iterator classIt = m_Means.begin(); classIt != m_Means.end(); ++classIt)
   {
-    for (int j = 0; j < m_FeatNb; ++j)
-      ofs << m_Means[i][j] << " ";
+    for (VectorType::iterator featIt = (*classIt).begin(); featIt != (*classIt).end(); ++featIt)
+      ofs << *featIt << " ";
 
     ofs << std::endl;
   }
 
   // Store vector of covariance matrices (one by line)
   ofs << "CovarianceMatrices:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<MatrixType>::iterator classIt = m_Covariances.begin(); classIt != m_Covariances.end(); ++classIt)
   {
     for (int j = 0; j < m_FeatNb; ++j)
     {
       for (int k = 0; k < m_FeatNb; ++k)
-        ofs << m_Covariances[i](j,k) << " ";
+        ofs << (*classIt)(j,k) << " ";
     }
     ofs << std::endl;
   }
 
   // Store vector of eigenvalues vector (one by line)
   ofs << "Eigenvalues:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<VectorType>::iterator classIt = m_EigenValues.begin(); classIt != m_EigenValues.end(); ++classIt)
   {
-    for (unsigned int j = 0; j < m_EigenValues[i].size(); ++j)
-      ofs << m_EigenValues[i][j] << " ";
+    for (VectorType::iterator featIt = (*classIt).begin(); featIt != (*classIt).end(); ++featIt)
+      ofs << *featIt << " ";
 
     ofs << std::endl;
   }
 
   // Store vector of eigenvectors matrices (one by line)
   ofs << "Eigenvectors:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<MatrixType>::iterator classIt = m_Q.begin(); classIt != m_Q.end(); ++classIt)
   {
-    for (unsigned int j = 0; j < m_Q[i].rows(); ++j)
+    for (unsigned int j = 0; j < (*classIt).rows(); ++j)
     {
-      for (unsigned int k = 0; k < m_Q[i].cols(); ++k)
-        ofs << m_Q[i](j,k) << " ";
+      for (unsigned int k = 0; k < (*classIt).cols(); ++k)
+        ofs << (*classIt)(j,k) << " ";
     }
     ofs << std::endl;
   }
 
   // Store vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
   ofs << "LambdaQ:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<MatrixType>::iterator classIt = m_LambdaQ.begin(); classIt != m_LambdaQ.end(); ++classIt)
   {
-    for (unsigned int j = 0; j < m_LambdaQ[i].rows(); ++j)
+    for (unsigned int j = 0; j < (*classIt).rows(); ++j)
     {
-      for (unsigned int k = 0; k < m_LambdaQ[i].cols(); ++k)
-        ofs << m_LambdaQ[i](j,k) << " ";
+      for (unsigned int k = 0; k < (*classIt).cols(); ++k)
+        ofs << (*classIt)(j,k) << " ";
     }
     ofs << std::endl;
   }
 
   // Store vector of scalar (logdet cov - 2*log proportion)
   ofs << "CstDecision:" << std::endl;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    ofs << m_CstDecision[i] << " ";
+  for (std::vector<RealType>::iterator classIt = m_CstDecision.begin(); classIt != m_CstDecision.end(); ++classIt)
+    ofs << *classIt << " ";
   ofs << std::endl;
 
   ofs.close();
@@ -594,7 +595,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   ifs >> dump;
   TargetValueType lab;
   int idLab;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (unsigned i = 0; i < m_ClassNb; ++i)
   {
     ifs >> lab;
     ifs >> idLab;
@@ -604,51 +605,51 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
   // Load vector of nb of samples
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    ifs >> m_NbSpl[i];
+  for (std::vector<unsigned>::iterator it = m_NbSpl.begin(); it != m_NbSpl.end(); ++it)
+    ifs >> *it;
 
   // Load vector of proportion of samples
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    ifs >> m_Proportion[i];
+  for (std::vector<double>::iterator it = m_Proportion.begin(); it != m_Proportion.end(); ++it)
+    ifs >> *it;
 
   // Load vector of mean vector (one by line)
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    for (int j = 0; j < m_FeatNb; ++j)
-      ifs >> m_Means[i][j];
+  for (std::vector<VectorType>::iterator classIt = m_Means.begin(); classIt != m_Means.end(); ++classIt)
+    for (VectorType::iterator featIt = (*classIt).begin(); featIt != (*classIt).end(); ++featIt)
+      ifs >> *featIt;
 
   // Load vector of covariance matrices (one by line)
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<MatrixType>::iterator classIt = m_Covariances.begin(); classIt != m_Covariances.end(); ++classIt)
     for (int j = 0; j < m_FeatNb; ++j)
       for (int k = 0; k < m_FeatNb; ++k)
-        ifs >> m_Covariances[i](j,k);
+        ifs >> (*classIt)(j,k);
 
   // Load vector of eigenvalues vector (one by line)
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    for (int j = 0; j < decompVarNb; ++j)
-      ifs >> m_EigenValues[i][j];
+  for (std::vector<VectorType>::iterator classIt = m_EigenValues.begin(); classIt != m_EigenValues.end(); ++classIt)
+    for (VectorType::iterator featIt = (*classIt).begin(); featIt != (*classIt).end(); ++featIt)
+      ifs >> *featIt;
 
   // Load vector of eigenvectors matrices (one by line)
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<MatrixType>::iterator classIt = m_Q.begin(); classIt != m_Q.end(); ++classIt)
     for (int j = 0; j < decompVarNb; ++j)
       for (int k = 0; k < decompVarNb; ++k)
-        ifs >> m_Q[i](j,k);
+        ifs >> (*classIt)(j,k);
 
   // Load vector of eigenvalues^(-1/2) * Q.T matrices (one by line)
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
+  for (std::vector<MatrixType>::iterator classIt = m_LambdaQ.begin(); classIt != m_LambdaQ.end(); ++classIt)
     for (int j = 0; j < decompVarNb; ++j)
       for (int k = 0; k < decompVarNb; ++k)
-        ifs >> m_LambdaQ[i](j,k);
+        ifs >> (*classIt)(j,k);
 
   // Load vector of scalar (logdet cov - 2*log proportion)
   ifs >> dump;
-  for (unsigned int i = 0; i < m_ClassNb; ++i)
-    ifs >> m_CstDecision[i];
+  for (std::vector<RealType>::iterator it = m_CstDecision.begin(); it != m_CstDecision.end(); ++it)
+    ifs >>*it;
 
   ifs.close();
 }

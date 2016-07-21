@@ -35,45 +35,48 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ExtractVector(const std::vector<int> & indexes, const VectorType& input, VectorType& ouput)
+::ExtractVector(const std::vector<int> & indexes, const VectorType& input, VectorType& output)
 {
-  for (unsigned int i = 0; i < indexes.size(); ++i)
-    ouput[i] = input[indexes[i]];
+  typename VectorType::iterator outIt = output.begin();
+  for (std::vector<int>::const_iterator it = indexes.begin(); it != indexes.end(); ++it, ++outIt)
+    *outIt = input[*it];
 }
 
 /** Extract a column matrix from a vector by indexes */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& ouput)
+::ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& output)
 {
-  for (unsigned int i = 0; i < indexes.size(); ++i)
-    ouput(i,0) = input[indexes[i]];
+  std::vector<int>::const_iterator it = indexes.begin();
+  for (unsigned i = 0; i < indexes.size(); ++i, ++it)
+    output(i,0) = input[*it];
 }
 
 /** Extract a column matrix from a matrix by column nb and indexes */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& ouput)
+::ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& output)
 {
-  for (unsigned int i = 0; i < indexesRow.size(); ++i)
-    ouput(i,0) = input(indexesRow[i],colIndex);
+  std::vector<int>::const_iterator it = indexesRow.begin();
+  for (unsigned i = 0; i < indexesRow.size(); ++i, ++it)
+    output(i,0) = input(*it,colIndex);
 }
 
 /** Extract a matrix from a symmetric matrix by indexes */
 template <class TInputValue, class TTargetValue>
 void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& ouput)
+::ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& output)
 {
-  for (unsigned int i = 0; i < indexes.size(); ++i)
+  for (unsigned i = 0; i < indexes.size(); ++i)
   {
-    ouput(i,i) = input(indexes[i],indexes[i]);
-    for (unsigned int j = i+1; j < indexes.size(); ++j)
+    output(i,i) = input(indexes[i],indexes[i]);
+    for (unsigned j = i+1; j < indexes.size(); ++j)
     {
-      ouput(i,j) = input(indexes[i],indexes[j]);
-      ouput(j,i) = ouput(i,j);
+      output(i,j) = input(indexes[i],indexes[j]);
+      output(j,i) = output(i,j);
     }
   }
 }
@@ -101,8 +104,8 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::UpdateProportion()
 {
   unsigned totalNb = 0;
-  for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
-    totalNb += Superclass::m_NbSpl[i];
+  for (std::vector<unsigned>::iterator it = Superclass::m_NbSpl.begin(); it != Superclass::m_NbSpl.end(); ++it)
+    totalNb += *it;
 
   Superclass::m_Proportion.resize(Superclass::m_ClassNb);
   m_Logprop.resize(Superclass::m_ClassNb);

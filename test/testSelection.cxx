@@ -16,10 +16,10 @@
 int testSelection(int argc, char * argv[])
 {
 
-    int nbSamples                   = 600;
-    unsigned int nbSampleComponents = 20;
-    int nbClasses                   = 6;
-    int selectedVarNb               = 15;
+    int nbSamples          = 600;
+    int nbSampleComponents = 20;
+    int nbClasses          = 6;
+    int selectedVarNb      = 15;
 
     // Define relevant variables
     std::vector<int> meaningfullVar(6);
