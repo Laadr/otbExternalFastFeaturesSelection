@@ -986,7 +986,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Save selection model
   if (m_SelectedVar.size() != 0)
   {
-    std::string selectionFilename = "selection_" + filename;
+    std::string suffix = "_selection";
+    std::string selectionFilename = filename;
+    std::size_t extPosition = selectionFilename.rfind(".");
+    selectionFilename.insert(extPosition,suffix);
     std::ofstream ofs(selectionFilename.c_str(), std::ios::out);
 
     // Store number of selected variables
@@ -1025,7 +1028,10 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
   Superclass::Load(filename,name);
 
-  std::string selectionFilename = "selection_" + filename;
+  std::string suffix = "_selection";
+  std::string selectionFilename = filename;
+  std::size_t extPosition = selectionFilename.rfind(".");
+  selectionFilename.insert(extPosition,suffix);
   std::ifstream ifs(selectionFilename.c_str(), std::ios::in);
 
   if(!ifs)
