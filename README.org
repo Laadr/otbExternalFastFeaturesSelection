@@ -10,10 +10,10 @@
 
 * Getting Started
 
-In addition of the C++ class, this module contain 3 OTB applications:
-- otbcli_TrainGMMApp: Train a GMM classifier from multiple pairs of images and training vector data. It also allows to perform ridge regularization with an embedded regularization parameter selection among a list of proposed values.
-- otbcli_TrainGMMSelectionApp: Train a GMM classifier and in addition perform a feature selection algorithm (SFS, SFFS) with various possible criterion (Jeffries-Matusita dist., Kullback-Lieber div., kappa, overall accuracy, mean F1-score).
-- otbcli_PredictGMMApp: Performs a classification of the input image according to a GMM model file created by one of two previous applications.
+In addition of the C++ class, this module contains 3 OTB applications:
+- otbcli_TrainGMMApp: Train a GMM classifier from multiple pairs of images and training vector data. It also allows to perform ridge regularization with an embedded selection of the regularization parameter among a list of proposed values.
+- otbcli_TrainGMMSelectionApp: Train a GMM classifier and in addition perform a feature selection algorithm (SFS, SFFS) with various possible criterion (Jeffries-Matusita dist., Kullback-Lieber div., Cohen's kappa, overall accuracy, mean F1-score).
+- otbcli_PredictGMMApp: Perform a classification of the input image according to a GMM model file created by one of two previous applications.
 
 * License
 
