@@ -4,13 +4,16 @@
 #+EMAIL: ad.lagrange@gmail.com
 
 * General
-  This is a remote module for the ORFEO
-  Toolbox(https://www.orfeo-toolbox.org/). It is designed to work with OTBv5
-  modular system and to be places in OTB/Module/Remote.
+  This is a remote module for the ORFEO Toolbox(https://www.orfeo-toolbox.org/). It is designed to work with OTBv5 modular system and to be places in OTB/Module/Remote.
   
   This module implements a method to perform a fast forward feature selection using a Gaussian Mixture Model. The algorithm is based on the following papers http://arxiv.org/abs/1501.00857 and Nonlinear parsimonious feature selection for the classification of hyperspectral images (http://fauvel.mathieu.free.fr/pdfs/pgpda_grsl.pdf).
 
 * Getting Started
+
+In addition of the C++ class, this module contain 3 OTB applications:
+- otbcli_TrainGMMApp: Train a GMM classifier from multiple pairs of images and training vector data. It also allows to perform ridge regularization with an embedded regularization parameter selection among a list of proposed values.
+- otbcli_TrainGMMSelectionApp: Train a GMM classifier and in addition perform a feature selection algorithm (SFS, SFFS) with various possible criterion (Jeffries-Matusita dist., Kullback-Lieber div., kappa, overall accuracy, mean F1-score).
+- otbcli_PredictGMMApp: Performs a classification of the input image according to a GMM model file created by one of two previous applications.
 
 * License
 
