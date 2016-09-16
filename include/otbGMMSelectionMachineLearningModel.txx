@@ -264,12 +264,12 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   // Start the forward search
   while ((currentSelectedVarNb<selectedVarNb)&&(!variablesPool.empty()))
   {
-
     std::vector<RealType> criterionVal(variablesPool.size(),0);
 
     // Compute criterion function
     if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
+      // COULD BE PARALLELIZED but need to see if it is better to parallelize here on each fold or inside ComputeClassifRate
       for (int i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
 
@@ -340,6 +340,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     // Compute criterion function
     if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
+      // COULD BE PARALLELIZED but need to see if it is better to parallelize here on each fold or inside ComputeClassifRate
       for (int i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
 
@@ -397,6 +398,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         // Compute criterion function
         if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
         {
+          // COULD BE PARALLELIZED but need to see if it is better to parallelize here on each fold or inside ComputeClassifRate
           for (int i = 0; i < m_SubmodelCv.size(); ++i)
             m_SubmodelCv[i]->ComputeClassifRate(criterionValBackward,"backward",m_SelectedVar,criterion);
 
@@ -447,6 +449,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     TargetSampleType res;
     std::vector<RealType> scores(Superclass::m_ClassNb);
 
+    // COULD BE PARALLELIZED
     for (int k = 0; k < variablesPool.size(); ++k)
     {
       typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
@@ -533,6 +536,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     MatrixType subInput_c(selectedVarNb,1);
     RealType quadraticTermUpdate;
 
+    // COULD BE PARALLELIZED
     for (int k = 0; k < variablesPool.size(); ++k)
     {
       typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
@@ -688,6 +692,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Precompute 0.5*logdet(cov)
     std::vector<int>::iterator varIt;
+    // COULD BE PARALLELIZED
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],subCovariances[c]);
@@ -738,6 +743,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         logdet = eigenValues.apply(log).sum();
 
         varIt = variablesPool.begin();
+        // COULD BE PARALLELIZED
         for (int k = 0; k < variablesPool.size(); ++k)
         {
           if (direction.compare("forward")==0)
@@ -789,6 +795,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     RealType alpha1,alpha2;
 
     // Compute KL divergence
+    // COULD BE PARALLELIZED
     for (int k = 0; k < variablesPool.size(); ++k)
     {
       for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
@@ -825,6 +832,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<MatrixType> invCov_update(Superclass::m_ClassNb,MatrixType(newVarNb,newVarNb));
 
     // Extract and decompose cov matrices
+    // COULD BE PARALLELIZED
     for (int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],reducedCovariances);
@@ -839,6 +847,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     MatrixType u(selectedVarNb,1);
     MatrixType md(newVarNb,1);
     std::vector<int> newSelectedVar(newVarNb);
+    // COULD BE PARALLELIZED
     for (int k = 0; k < variablesPool.size(); ++k)
     {
       // commpute update cst

@@ -51,6 +51,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     m_CstDecision.assign(m_ClassNb,0);
     m_LambdaQ.resize(m_ClassNb, MatrixType(m_FeatNb,m_FeatNb));
 
+    // COULD BE PARALLELIZED (small benefit)
     for (unsigned int i = 0; i < m_ClassNb; ++i)
     {
       for (unsigned int j = 0; j < m_FeatNb; ++j)
@@ -160,6 +161,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
     typename ConfusionMatrixType::Pointer confM = ConfusionMatrixType::New();
 
+    // COULD BE PARALLELIZED and could also use filter to predict...
     // Classify with all submodels for a given tau
     for (int i = 0; i < nfold; ++i)
     {
@@ -369,6 +371,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   RealType lambda;
   typedef itk::Statistics::CovarianceSampleFilter< itk::Statistics::Subsample< InputListSampleType > > CovarianceEstimatorType;
   typename CovarianceEstimatorType::Pointer covarianceEstimator = CovarianceEstimatorType::New();
+  // COULD BE PARALLELIZED
   for ( unsigned int i = 0; i < m_ClassNb; ++i )
   {
     // Estimate covariance matrices, mean vectors and proportions
