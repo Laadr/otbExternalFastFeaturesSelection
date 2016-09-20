@@ -17,19 +17,8 @@ In addition of the C++ class, this module contains 3 OTB applications:
 
 * Details of application parameters
 
+
 otbcli_TrainGMMApp parameters:
-- progress      <boolean>        Report progress
-- io.il         <string list>    Input Image List  (mandatory)
-- io.vd         <string list>    Input Vector Data List  (mandatory)
-- io.imstat     <string>         Input XML image statistics file  (optional, off by default)
-- io.confmatout <string>         Output confusion matrix  (optional, off by default)
-- io.out        <string>         Output model  (mandatory)
-- sample.mt     <int32>          Maximum training sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available training sample list per class will be equal to the surface area of the smallest class multiplied by the training sample ratio.
-- sample.mv     <int32>          Maximum validation sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available validation sample list per class will be equal to the surface area of the smallest class multiplied by the validation sample ratio.
-- sample.bm     <int32>          Bound the number of samples for each class by the number of available samples by the smallest class. Proportions between training and validation are respected (mandatory, default value is 1).
-- sample.edg    <boolean>        On edge pixel inclusion  (optional, off by default)
-- sample.vtr    <float>          Training and validation sample ratio  (mandatory, default value is 0.5)
-- sample.vfn    <string>         Name of the discrimination field  (mandatory, default value is Class)
 - gmm.tau       <string list>    List of regularization parameters to test. If this parameter is not set, no regularization is performed and if there is only one proposed value, no gridsearch is performed (optional, off by default).
 - gmm.ncv       <int32>          Number of folds for cross-validation to estimate the classification rate when selecting the best regularization parameter (mandatory, default value is 5)
 - gmm.metric    <string>         Metric to use for tau selection [accuracy/kappa/f1mean] (mandatory, default value is kappa)
@@ -38,18 +27,6 @@ otbcli_TrainGMMApp parameters:
 - inxml         <string>         Load otb application from xml file  (optional, off by default)
 
 otbcli_TrainGMMSelectionApp parameters:
-- progress      <boolean>        Report progress
-- io.il         <string list>    Input Image List  (mandatory)
-- io.vd         <string list>    Input Vector Data List  (mandatory)
-- io.imstat     <string>         Input XML image statistics file  (optional, off by default)
-- io.confmatout <string>         Output confusion matrix  (optional, off by default)
-- io.out        <string>         Output model  (mandatory)
-- sample.mt     <int32>          Maximum training sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available training sample list per class will be equal to the surface area of the smallest class multiplied by the training sample ratio.
-- sample.mv     <int32>          Maximum validation sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available validation sample list per class will be equal to the surface area of the smallest class multiplied by the validation sample ratio.
-- sample.bm     <int32>          Bound the number of samples for each class by the number of available samples by the smallest class. Proportions between training and validation are respected (mandatory, default value is 1).
-- sample.edg    <boolean>        On edge pixel inclusion  (optional, off by default)
-- sample.vtr    <float>          Training and validation sample ratio  (mandatory, default value is 0.5)
-- sample.vfn    <string>         Name of the discrimination field  (mandatory, default value is Class)
 - gmm.varnb     <int32>          Number of variables to select with the selection algorithm. All selected variables are not necessarily used for prediction depending of gmm.best option. (mandatory)
 - gmm.method    <string>         Method used for selection [forward/sffs] (mandatory, default value is forward)
 - gmm.crit      <string>         Criterion function used for selection [jm/divkl/accuracy/kappa/f1mean] (mandatory, default value is jm) The five criterion functions available are Jeffries-Matusita distance, Kullback–Leibler divergence, overall accuracy, Cohen's kappa and mean of F1-scores.
@@ -59,7 +36,6 @@ otbcli_TrainGMMSelectionApp parameters:
 - rand          <int32>          set user defined seed  (optional, off by default)
 
 otbcli_PredictGMMApp parameters:
-- progress  <boolean>        Report progress
 - in        <string>         Input Image  (mandatory)
 - mask      <string>         Input Mask  (optional, off by default)
 - model     <string>         Model file  (mandatory)
@@ -69,6 +45,19 @@ otbcli_PredictGMMApp parameters:
 - out       <string> [pixel] Output Image  [pixel=uint8/uint16/int16/uint32/int32/float/double] (default value is uint8) (mandatory)
 - confmap   <string> [pixel] Confidence map  [pixel=uint8/uint16/int16/uint32/int32/float/double] (default value is double) (optional, off by default)
 
+Sampling parameters inherited from OTB:
+- progress      <boolean>        Report progress
+- io.il         <string list>    Input Image List  (mandatory)
+- io.vd         <string list>    Input Vector Data List  (mandatory)
+- io.imstat     <string>         Input XML image statistics file  (optional, off by default)
+- io.confmatout <string>         Output confusion matrix  (optional, off by default)
+- io.out        <string>         Output model  (mandatory)
+- sample.mt     <int32>          Maximum training sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available training sample list per class will be equal to the surface area of the smallest class multiplied by the training sample ratio.
+- sample.mv     <int32>          Maximum validation sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available validation sample list per class will be equal to the surface area of the smallest class multiplied by the validation sample ratio.
+- sample.bm     <int32>          Bound the number of samples for each class by the number of available samples by the smallest class. Proportions between training and validation are respected (mandatory, default value is 1).
+- sample.edg    <boolean>        On edge pixel inclusion  (optional, off by default)
+- sample.vtr    <float>          Training and validation sample ratio  (mandatory, default value is 0.5)
+- sample.vfn    <string>         Name of the discrimination field  (mandatory, default value is Class)
 
 * License
 
