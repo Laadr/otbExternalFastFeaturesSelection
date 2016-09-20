@@ -5,7 +5,7 @@
 
 * General
   This is a remote module for the ORFEO Toolbox(https://www.orfeo-toolbox.org/). It is designed to work with OTBv5 modular system and to be places in OTB/Module/Remote.
-  
+
   This module implements a method to perform a fast forward feature selection using a Gaussian Mixture Model. The algorithm is based on the following papers http://arxiv.org/abs/1501.00857 and Nonlinear parsimonious feature selection for the classification of hyperspectral images (http://fauvel.mathieu.free.fr/pdfs/pgpda_grsl.pdf).
 
 * Getting Started
@@ -14,6 +14,61 @@ In addition of the C++ class, this module contains 3 OTB applications:
 - otbcli_TrainGMMApp: Train a GMM classifier from multiple pairs of images and training vector data. It also allows to perform ridge regularization with an embedded selection of the regularization parameter among a list of proposed values.
 - otbcli_TrainGMMSelectionApp: Train a GMM classifier and in addition perform a feature selection algorithm (SFS, SFFS) with various possible criterion (Jeffries-Matusita dist., Kullback-Lieber div., Cohen's kappa, overall accuracy, mean F1-score).
 - otbcli_PredictGMMApp: Perform a classification of the input image according to a GMM model file created by one of two previous applications.
+
+* Details of application parameters
+
+otbcli_TrainGMMApp parameters:
+-progress      <boolean>        Report progress
+-io.il         <string list>    Input Image List  (mandatory)
+-io.vd         <string list>    Input Vector Data List  (mandatory)
+-io.imstat     <string>         Input XML image statistics file  (optional, off by default)
+-io.confmatout <string>         Output confusion matrix  (optional, off by default)
+-io.out        <string>         Output model  (mandatory)
+-sample.mt     <int32>          Maximum training sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available training sample list per class will be equal to the surface area of the smallest class multiplied by the training sample ratio.
+-sample.mv     <int32>          Maximum validation sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available validation sample list per class will be equal to the surface area of the smallest class multiplied by the validation sample ratio.
+-sample.bm     <int32>          Bound the number of samples for each class by the number of available samples by the smallest class. Proportions between training and validation are respected (mandatory, default value is 1).
+-sample.edg    <boolean>        On edge pixel inclusion  (optional, off by default)
+-sample.vtr    <float>          Training and validation sample ratio  (mandatory, default value is 0.5)
+-sample.vfn    <string>         Name of the discrimination field  (mandatory, default value is Class)
+-gmm.tau       <string list>    List of regularization parameters to test. If this parameter is not set, no regularization is performed and if there is only one proposed value, no gridsearch is performed (optional, off by default).
+-gmm.ncv       <int32>          Number of folds for cross-validation to estimate the classification rate when selecting the best regularization parameter (mandatory, default value is 5)
+-gmm.metric    <string>         Metric to use for tau selection [accuracy/kappa/f1mean] (mandatory, default value is kappa)
+-gmm.seed      <int32>          Rand seed for cross-validation  (mandatory, default value is 0)
+-rand          <int32>          set user defined seed  (optional, off by default)
+-inxml         <string>         Load otb application from xml file  (optional, off by default)
+
+otbcli_TrainGMMSelectionApp parameters:
+-progress      <boolean>        Report progress
+-io.il         <string list>    Input Image List  (mandatory)
+-io.vd         <string list>    Input Vector Data List  (mandatory)
+-io.imstat     <string>         Input XML image statistics file  (optional, off by default)
+-io.confmatout <string>         Output confusion matrix  (optional, off by default)
+-io.out        <string>         Output model  (mandatory)
+-sample.mt     <int32>          Maximum training sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available training sample list per class will be equal to the surface area of the smallest class multiplied by the training sample ratio.
+-sample.mv     <int32>          Maximum validation sample size per class  (mandatory, default value is 1000) (no limit = -1). If equal to -1, then the maximal size of the available validation sample list per class will be equal to the surface area of the smallest class multiplied by the validation sample ratio.
+-sample.bm     <int32>          Bound the number of samples for each class by the number of available samples by the smallest class. Proportions between training and validation are respected (mandatory, default value is 1).
+-sample.edg    <boolean>        On edge pixel inclusion  (optional, off by default)
+-sample.vtr    <float>          Training and validation sample ratio  (mandatory, default value is 0.5)
+-sample.vfn    <string>         Name of the discrimination field  (mandatory, default value is Class)
+-gmm.varnb     <int32>          Number of variables to select with the selection algorithm. All selected variables are not necessarily used for prediction depending of gmm.best option. (mandatory)
+-gmm.method    <string>         Method used for selection [forward/sffs] (mandatory, default value is forward)
+-gmm.crit      <string>         Criterion function used for selection [jm/divkl/accuracy/kappa/f1mean] (mandatory, default value is jm) The five criterion functions available are Jeffries-Matusita distance, Kullback–Leibler divergence, overall accuracy, Cohen's kappa and mean of F1-scores.
+-gmm.ncv       <int32>          Number of folds for the cross-validation used to estimate the classification rate when selecting variables (mandatory, default value is 5). It is used only with Jeffries-Matusita distance and Kullback–Leibler divergence.
+-gmm.best      <int32>          If 1, choose optimal set of features based on criterion function after selection. If 0, all selected features are used (mandatory, default value is 1)
+-gmm.seed      <int32>          Rand seed for cross-validation (mandatory, default value is 0)
+-rand          <int32>          set user defined seed  (optional, off by default)
+
+otbcli_PredictGMMApp parameters:
+-progress  <boolean>        Report progress
+-in        <string>         Input Image  (mandatory)
+-mask      <string>         Input Mask  (optional, off by default)
+-model     <string>         Model file  (mandatory)
+-modeltype <string>         Type of GMM model [basic/selection] (mandatory, default value is basic)
+-varnb     <int32>          New number of variables to use for prediction. (Ignore number of variables chosen during training) (optional, off by default)
+-imstat    <string>         Statistics file (optional, off by default)
+-out       <string> [pixel] Output Image  [pixel=uint8/uint16/int16/uint32/int32/float/double] (default value is uint8) (mandatory)
+-confmap   <string> [pixel] Confidence map  [pixel=uint8/uint16/int16/uint32/int32/float/double] (default value is double) (optional, off by default)
+
 
 * License
 

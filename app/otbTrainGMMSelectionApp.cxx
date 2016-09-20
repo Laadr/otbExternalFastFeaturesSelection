@@ -154,7 +154,7 @@ private:
     SetParameterDescription("gmm", "This group of parameters allows to set the parameters of the GMM learning algorithm.");
 
     AddParameter(ParameterType_Int, "gmm.varnb", "Number of variables to select");
-    SetParameterDescription("gmm.varnb", "Number of variables to select with the selection algorithm. All selected are not necessarily used for prediction depending of gmm.best option. ");
+    SetParameterDescription("gmm.varnb", "Number of variables to select with the selection algorithm. All selected variables are not necessarily used for prediction depending of gmm.best option. ");
 
     AddParameter(ParameterType_Choice, "gmm.method", "Method used for selection");
     AddChoice("gmm.method.forward", "Sequential forward selection");
@@ -173,7 +173,7 @@ private:
 
     AddParameter(ParameterType_Int, "gmm.ncv", "Number of folds for cross-validation");
     SetDefaultParameterInt("gmm.ncv", 5);
-    SetParameterDescription("gmm.ncv", "Number of folds for cross-validation to estimate the classification rate when selecting variables (default = 5). It is ussed only with Jeffries-Matusita distance and Kullback–Leibler divergence.");
+    SetParameterDescription("gmm.ncv", "Number of folds for the cross-validation used to estimate the classification rate when selecting variables (default = 5). It is used only with Jeffries-Matusita distance and Kullback–Leibler divergence.");
 
     AddParameter(ParameterType_Int, "gmm.best", "If 1, choose optimal set of features based on criterion function after selection. If 0, all selected features are used");
     SetDefaultParameterInt("gmm.best", 1);
