@@ -1,5 +1,5 @@
 
-#+TITLE: Operational Feature Selection in Gaussian Mixture Models
+#+TITLE: Operational Forward Feature Selection in Gaussian Mixture Models
 #+AUTHOR: Adrien Lagrange
 #+EMAIL: ad.lagrange@gmail.com
 
