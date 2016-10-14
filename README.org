@@ -6,7 +6,7 @@
 * General
   This is a remote module for the ORFEO Toolbox(https://www.orfeo-toolbox.org/). It is designed to work with OTBv5 modular system and to be places in OTB/Module/Remote.
 
-  This module implements a method to perform a fast forward feature selection using a Gaussian Mixture Model. The algorithm is based on the following papers http://arxiv.org/abs/1501.00857 and Nonlinear parsimonious feature selection for the classification of hyperspectral images (http://fauvel.mathieu.free.fr/pdfs/pgpda_grsl.pdf).
+  This module implements a method to perform a fast forward feature selection using a Gaussian Mixture Model. The algorithm is based on the following papers http://fauvel.mathieu.free.fr/pdfs/fffs_jstars.pdf.
 
 * Getting Started
 
