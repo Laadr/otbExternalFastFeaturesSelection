@@ -96,9 +96,6 @@ public:
   /** Train the machine learning model */
   virtual void Train();
 
-  /** Predict values using the model */
-  virtual TargetSampleType Predict(const InputSampleType& input, ConfidenceValueType *quality=NULL) const;
-
 protected:
   /** Constructor */
   GMMSelectionMachineLearningModel();
@@ -106,6 +103,9 @@ protected:
   /** Destructor */
   virtual ~GMMSelectionMachineLearningModel();
 
+  /** Predict values using the model */
+  TargetSampleType DoPredict(const InputSampleType& input, ConfidenceValueType *quality=ITK_NULLPTR) const ITK_OVERRIDE;
+  
   /** PrintSelf method */
   void PrintSelf(std::ostream& os, itk::Indent indent) const;
 

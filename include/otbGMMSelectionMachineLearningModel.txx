@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "otbGMMSelectionMachineLearningModel.h"
+
 #include "otbConfusionMatrixCalculator.h"
 #include "vnl/vnl_trace.h"
 
@@ -49,7 +51,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractVectorToColMatrix(const std::vector<int> & indexes, const VectorType& input, MatrixType& output)
 {
   std::vector<int>::const_iterator it = indexes.begin();
-  for (unsigned i = 0; i < indexes.size(); ++i, ++it)
+  for (unsigned int i = 0; i < indexes.size(); ++i, ++it)
     output(i,0) = input[*it];
 }
 
@@ -60,7 +62,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractReducedColumn(const int colIndex, const std::vector<int> & indexesRow, const MatrixType& input, MatrixType& output)
 {
   std::vector<int>::const_iterator it = indexesRow.begin();
-  for (unsigned i = 0; i < indexesRow.size(); ++i, ++it)
+  for (unsigned int i = 0; i < indexesRow.size(); ++i, ++it)
     output(i,0) = input(*it,colIndex);
 }
 
@@ -70,10 +72,10 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ExtractSubSymmetricMatrix(const std::vector<int> & indexes, const MatrixType& input, MatrixType& output)
 {
-  for (unsigned i = 0; i < indexes.size(); ++i)
+  for (unsigned int i = 0; i < indexes.size(); ++i)
   {
     output(i,i) = input(indexes[i],indexes[i]);
-    for (unsigned j = i+1; j < indexes.size(); ++j)
+    for (unsigned int j = i+1; j < indexes.size(); ++j)
     {
       output(i,j) = input(indexes[i],indexes[j]);
       output(j,i) = output(i,j);
@@ -270,11 +272,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
       // COULD BE PARALLELIZED but need to see if it is better to parallelize here on each fold or inside ComputeClassifRate
-      for (int i = 0; i < m_SubmodelCv.size(); ++i)
+      for (unsigned int i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
 
       // Compute mean instead of keeping sum of criterion for all folds (not necessary)
-      for (int i = 0; i < criterionVal.size(); ++i)
+      for (unsigned int i = 0; i < criterionVal.size(); ++i)
         criterionVal[i] /= m_SubmodelCv.size();
     }
     else if (criterion.compare("jm") == 0)
@@ -341,11 +343,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
       // COULD BE PARALLELIZED but need to see if it is better to parallelize here on each fold or inside ComputeClassifRate
-      for (int i = 0; i < m_SubmodelCv.size(); ++i)
+      for (unsigned int i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->ComputeClassifRate(criterionVal,"forward",variablesPool,criterion);
 
       // Compute mean instead of keeping sum of criterion for all folds (not necessary)
-      for (int i = 0; i < criterionVal.size(); ++i)
+      for (unsigned int i = 0; i < criterionVal.size(); ++i)
         criterionVal[i] /= m_SubmodelCv.size();
     }
     else if (criterion.compare("jm") == 0)
@@ -450,20 +452,20 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<RealType> scores(Superclass::m_ClassNb);
 
     // COULD BE PARALLELIZED
-    for (int k = 0; k < variablesPool.size(); ++k)
+    for (unsigned int k = 0; k < variablesPool.size(); ++k)
     {
       typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
       typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
       typename ConfusionMatrixType::Pointer confM                = ConfusionMatrixType::New();
 
       // Predict labels with variables k added
-      for (int i = 0; i < m_Fold.size(); ++i)
+      for (unsigned int i = 0; i < m_Fold.size(); ++i)
       {
         for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
         {
           sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
 
-          for (int c = 0; c < Superclass::m_ClassNb; ++c)
+          for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
             scores[c] = (sample[k] - Superclass::m_Means[c][k])*(sample[k] - Superclass::m_Means[c][k]) / Superclass::m_Covariances[c](k,k) + log(Superclass::m_Covariances[c](k,k)) - m_Logprop[c];
 
           res[0] = Superclass::m_MapOfIndices.at(std::distance(scores.begin(), std::min_element(scores.begin(), scores.end())));
@@ -511,7 +513,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<RealType> logdet(Superclass::m_ClassNb);
 
     // Compute inv of covariance matrix and logdet
-    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+    for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractVectorToColMatrix(m_SelectedVar, Superclass::m_Means[c], subMeans[c]);
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],subCovariances);
@@ -537,7 +539,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     RealType quadraticTermUpdate;
 
     // COULD BE PARALLELIZED
-    for (int k = 0; k < variablesPool.size(); ++k)
+    for (unsigned int k = 0; k < variablesPool.size(); ++k)
     {
       typename TargetListSampleType::Pointer TargetListSample    = TargetListSampleType::New();
       typename TargetListSampleType::Pointer RefTargetListSample = TargetListSampleType::New();
@@ -546,7 +548,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       // Predict labels with variables k added
       if (direction.compare("forward")==0)
       {
-        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
         {
           ExtractReducedColumn(variablesPool[k],m_SelectedVar,Superclass::m_Covariances[c],u);
           alpha[c] = Superclass::m_Covariances[c](variablesPool[k],variablesPool[k]) - (u.transpose() * invCov[c] *u)(0,0);
@@ -557,7 +559,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
           v[c] = -1/alpha[c] * (invCov[c]*u).transpose();
         }
 
-        for (int i = 0; i < m_Fold.size(); ++i)
+        for (unsigned int i = 0; i < m_Fold.size(); ++i)
         {
           for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
           {
@@ -567,7 +569,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             for (int n = 0; n < selectedVarNb; ++n)
               subInput(n,0) = sample[m_SelectedVar[n]];
 
-            for (int c = 0; c < Superclass::m_ClassNb; ++c)
+            for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
             {
               subInput_c = subInput - subMeans[c];
               quadraticTermUpdate = (v[c]*subInput_c)(0,0) + 1/alpha[c] * (sample[variablesPool[k]] - Superclass::m_Means[c][variablesPool[k]]);
@@ -583,7 +585,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       }
       else if (direction.compare("backward")==0)
       {
-        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
         {
           alpha[c] = 1/invCov[c](k,k);
           if (alpha[c] < std::numeric_limits<RealType>::epsilon())
@@ -593,7 +595,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
           v[c] = invCov[c].get_n_rows(k,1);
         }
 
-        for (int i = 0; i < m_Fold.size(); ++i)
+        for (unsigned int i = 0; i < m_Fold.size(); ++i)
         {
           for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
           {
@@ -603,7 +605,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
             for (int n = 0; n < selectedVarNb; ++n)
               subInput(n,0) = sample[m_SelectedVar[n]];
 
-            for (int c = 0; c < Superclass::m_ClassNb; ++c)
+            for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
             {
               subInput_c = subInput - subMeans[c];
               quadraticTermUpdate = (v[c]*subInput_c)(0,0);
@@ -656,19 +658,19 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   if (m_SelectedVar.empty())
   {
     // Precompute 0.5*logdet(cov)
-    for (int c = 0; c < Superclass::m_ClassNb; ++c)
-      for (int j = 0; j < variablesPool.size(); ++j)
+    for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
+      for (unsigned int j = 0; j < variablesPool.size(); ++j)
         halfedLogdet[c][j] = 0.5*log(Superclass::m_Covariances[c](j,j));
 
     RealType md, cs, bij;
 
     // Compute J-M distance
-    for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+    for (unsigned int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
     {
-      for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+      for (unsigned int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
       {
         std::vector<int>::iterator varIt = variablesPool.begin();
-        for (int j = 0; j < variablesPool.size(); ++j)
+        for (unsigned int j = 0; j < variablesPool.size(); ++j)
         {
           md = Superclass::m_Means[c1][*varIt] - Superclass::m_Means[c2][*varIt];
           cs = Superclass::m_Covariances[c1](*varIt,*varIt) + Superclass::m_Covariances[c2](*varIt,*varIt);
@@ -693,7 +695,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     // Precompute 0.5*logdet(cov)
     std::vector<int>::iterator varIt;
     // COULD BE PARALLELIZED
-    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+    for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],subCovariances[c]);
       Superclass::Decomposition(subCovariances[c], Q, eigenValues);
@@ -702,7 +704,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       logdet = eigenValues.apply(log).sum();
 
       varIt = variablesPool.begin();
-      for (int j = 0; j < variablesPool.size(); ++j)
+      for (unsigned int j = 0; j < variablesPool.size(); ++j)
       {
         if (direction.compare("forward")==0)
         {
@@ -728,13 +730,13 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Extract means
     std::vector<MatrixType> subMeans(Superclass::m_ClassNb,MatrixType(selectedVarNb,1));
-    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+    for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
       ExtractVectorToColMatrix(m_SelectedVar, Superclass::m_Means[c], subMeans[c]);
 
     // Compute JM
-    for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+    for (unsigned int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
     {
-      for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+      for (unsigned int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
       {
         cs = 0.5*(subCovariances[c1] + subCovariances[c2]);
         Superclass::Decomposition(cs, Q, eigenValues);
@@ -744,7 +746,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
         varIt = variablesPool.begin();
         // COULD BE PARALLELIZED
-        for (int k = 0; k < variablesPool.size(); ++k)
+        for (unsigned int k = 0; k < variablesPool.size(); ++k)
         {
           if (direction.compare("forward")==0)
           {
@@ -796,15 +798,15 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Compute KL divergence
     // COULD BE PARALLELIZED
-    for (int k = 0; k < variablesPool.size(); ++k)
+    for (unsigned int k = 0; k < variablesPool.size(); ++k)
     {
-      for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+      for (unsigned int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
       {
         alpha1 = 1/Superclass::m_Covariances[c1](variablesPool[k],variablesPool[k]);
         if (alpha1 < std::numeric_limits<RealType>::epsilon())
           alpha1 = std::numeric_limits<RealType>::epsilon();
 
-        for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+        for (unsigned int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
         {
           alpha2 = 1/Superclass::m_Covariances[c2](variablesPool[k],variablesPool[k]);
           if (alpha2 < std::numeric_limits<RealType>::epsilon())
@@ -833,7 +835,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Extract and decompose cov matrices
     // COULD BE PARALLELIZED
-    for (int c = 0; c < Superclass::m_ClassNb; ++c)
+    for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
     {
       ExtractSubSymmetricMatrix(m_SelectedVar,Superclass::m_Covariances[c],reducedCovariances);
       Superclass::Decomposition(reducedCovariances, Q, eigenValues);
@@ -848,7 +850,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     MatrixType md(newVarNb,1);
     std::vector<int> newSelectedVar(newVarNb);
     // COULD BE PARALLELIZED
-    for (int k = 0; k < variablesPool.size(); ++k)
+    for (unsigned int k = 0; k < variablesPool.size(); ++k)
     {
       // commpute update cst
       if (direction.compare("forward")==0)
@@ -861,7 +863,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         }
         newSelectedVar[newVarNb-1] = variablesPool[k];
 
-        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
         {
           ExtractReducedColumn(variablesPool[k],m_SelectedVar,Superclass::m_Covariances[c],u);
           tmp = invCov[c]*u;
@@ -879,7 +881,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       else if (direction.compare("backward")==0)
       {
         std::vector<int>::iterator varIt = newSelectedVar.begin();
-        for (int i = 0; i < selectedVarNb; ++i)
+        for (unsigned int i = 0; i < selectedVarNb; ++i)
         {
           if (i!=k)
           {
@@ -888,7 +890,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
           }
         }
 
-        for (int c = 0; c < Superclass::m_ClassNb; ++c)
+        for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
         {
           ExtractSubSymmetricMatrix(newSelectedVar,Superclass::m_Covariances[c],subMatrix);
           ExtractReducedColumn(variablesPool[k],newSelectedVar,Superclass::m_Covariances[c],u);
@@ -898,16 +900,16 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
       // Extract means
       std::vector<MatrixType> subCovariances(Superclass::m_ClassNb,MatrixType(newVarNb,newVarNb));
-      for (int c = 0; c < Superclass::m_ClassNb; ++c)
+      for (unsigned int c = 0; c < Superclass::m_ClassNb; ++c)
       {
         ExtractVectorToColMatrix(newSelectedVar, Superclass::m_Means[c], subMeans[c]);
         ExtractSubSymmetricMatrix(newSelectedVar,Superclass::m_Covariances[c],subCovariances[c]);
       }
 
       // Compute KL divergence
-      for (int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
+      for (unsigned int c1 = 0; c1 < Superclass::m_ClassNb; ++c1)
       {
-        for (int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
+        for (unsigned int c2 = c1+1; c2 < Superclass::m_ClassNb; ++c2)
         {
           md       = subMeans[c1] - subMeans[c2];
           divKL[k] += Superclass::m_Proportion[c1] * Superclass::m_Proportion[c2] * 0.5 * ( vnl_trace(invCov_update[c2]*subCovariances[c1] + invCov_update[c1]*subCovariances[c2]) + (md.transpose()*(invCov_update[c1]+invCov_update[c2])*md)(0,0) );
@@ -935,11 +937,11 @@ template <class TInputValue, class TTargetValue>
 typename GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
+::DoPredict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
   if (m_SelectedVar.empty())
   {
-    return Superclass::Predict(rawInput, quality);
+    return Superclass::DoPredict(rawInput, quality);
   }
   else
   {
@@ -952,7 +954,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::vector<RealType> decisionFct(Superclass::m_CstDecision);
     VectorType lambdaQInputC(m_VarNbPrediction);
     VectorType input_c(m_VarNbPrediction);
-    for (int i = 0; i < Superclass::m_ClassNb; ++i)
+    for (unsigned int i = 0; i < Superclass::m_ClassNb; ++i)
     {
       input_c = subInput - m_SubMeans[i];
       lambdaQInputC = Superclass::m_LambdaQ[i] * input_c;
@@ -970,7 +972,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     if (quality != NULL)
     {
       RealType prob = 0;
-      for (int i = 0; i < decisionFct.size(); ++i)
+      for (unsigned int i = 0; i < decisionFct.size(); ++i)
         prob += exp(-0.5*(decisionFct[i]-decisionFct[argmin]));
       *quality = (ConfidenceValueType) ( 1 / prob);
     }
@@ -1009,9 +1011,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Store vector of selected features
     ofs << "bestSelectedVarSetsForEachNbOfSelectedVar:" << std::endl;
-    for (int i = 0; i < m_BestSets.size(); ++i)
+    for (unsigned int i = 0; i < m_BestSets.size(); ++i)
     {
-      for (int j = 0; j < m_BestSets[i].size(); ++j)
+      for (unsigned int j = 0; j < m_BestSets[i].size(); ++j)
         ofs << m_BestSets[i][j] << " ";
       ofs << std::endl;
     }
@@ -1022,7 +1024,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
     // Store vector of criterion functions values with the corresponding number of features used
     ofs << "criterionfctEvolution:" << std::endl;
-    for (int i = 0; i < m_SelectedVar.size(); ++i)
+    for (unsigned int i = 0; i < m_SelectedVar.size(); ++i)
       ofs << i+1 << " " << m_CriterionBestValues[i] << std::endl;
 
     ofs.close();
