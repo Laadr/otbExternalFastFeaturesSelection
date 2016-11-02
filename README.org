@@ -15,6 +15,8 @@ In addition of the C++ class, this module contains 3 OTB applications:
 - otbcli_TrainGMMSelectionApp: Train a GMM classifier and in addition perform a feature selection algorithm (SFS, SFFS) with various possible criterion (Jeffries-Matusita dist., Kullback-Lieber div., Cohen's kappa, overall accuracy, mean F1-score).
 - otbcli_PredictGMMApp: Perform a classification of the input image according to a GMM model file created by one of two previous applications.
 
+A detailed and explained example of how to use the module is available on Mathieu Fauvel's blog: http://fauvel.mathieu.free.fr/too-many-features.html.
+
 * Details of application parameters
 
 
