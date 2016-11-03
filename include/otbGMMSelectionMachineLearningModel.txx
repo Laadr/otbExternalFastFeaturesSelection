@@ -1000,6 +1000,9 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     std::string suffix = "_selection";
     std::string selectionFilename = filename;
     std::size_t extPosition = selectionFilename.rfind(".");
+    if (extPosition > selectionFilename.length())
+      extPosition = selectionFilename.length();
+      
     selectionFilename.insert(extPosition,suffix);
     std::ofstream ofs(selectionFilename.c_str(), std::ios::out);
 
@@ -1175,7 +1178,7 @@ void
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::SetVarNbPrediction(int varNb)
 {
-  if (varNb <= m_BestSets.size())
+  if ((unsigned)varNb <= m_BestSets.size())
   {
     SetSelectedVar(m_BestSets[varNb-1]);
   }

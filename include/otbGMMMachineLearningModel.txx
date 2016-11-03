@@ -627,8 +627,8 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   // Load vector of covariance matrices (one by line)
   ifs >> dump;
   for (std::vector<MatrixType>::iterator classIt = m_Covariances.begin(); classIt != m_Covariances.end(); ++classIt)
-    for (int j = 0; j < m_FeatNb; ++j)
-      for (int k = 0; k < m_FeatNb; ++k)
+    for (unsigned j = 0; j < m_FeatNb; ++j)
+      for (unsigned k = 0; k < m_FeatNb; ++k)
         ifs >> (*classIt)(j,k);
 
   // Load vector of eigenvalues vector (one by line)
