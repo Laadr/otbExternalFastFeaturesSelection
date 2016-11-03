@@ -113,7 +113,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
         // Last fold get the remaining samples
         folds[j].push_back( ClassSampleType::New() );
         folds[j][folds[j].size()-1]->SetSample( Superclass::GetInputListSample() );
-        for (int k = j*nbSplFold; k < m_NbSpl[i]; ++k)
+        for (unsigned k = j*nbSplFold; k < m_NbSpl[i]; ++k)
           folds[j][folds[j].size()-1]->AddInstance( indices[k] );
         submodelCv[j]->AddNbSpl(m_NbSpl[i] - j*nbSplFold);
         nbSplFold = m_NbSpl[i] - j*nbSplFold;
@@ -122,7 +122,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
       {
         folds[j].push_back( ClassSampleType::New() );
         folds[j][folds[j].size()-1]->SetSample( Superclass::GetInputListSample() );
-        for (int k = j*nbSplFold; k < (j+1)*nbSplFold; ++k)
+        for (unsigned k = j*nbSplFold; k < (j+1)*nbSplFold; ++k)
           folds[j][folds[j].size()-1]->AddInstance( indices[k] );
         submodelCv[j]->AddNbSpl(nbSplFold);
       }
@@ -175,9 +175,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 
         if (i==nfold-1)
         {
-          for (int s = 0; s < (m_NbSpl[c] - i*nbSplFold); ++s)
+          for (unsigned s = 0; s < (m_NbSpl[c] - i*nbSplFold); ++s)
           {
-            res = submodelCv[i]->DoPredict(folds[i][c]->GetMeasurementVectorByIndex(s));
+            res = submodelCv[i]->Predict(folds[i][c]->GetMeasurementVectorByIndex(s));
             TargetListSample->PushBack(res);
             res[0] = m_MapOfIndices.at(c);
             RefTargetListSample->PushBack(res);
@@ -185,9 +185,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
         }
         else
         {
-          for (int s = 0; s < nbSplFold; ++s)
+          for (unsigned s = 0; s < nbSplFold; ++s)
           {
-            res = submodelCv[i]->DoPredict(folds[i][c]->GetMeasurementVectorByIndex(s));
+            res = submodelCv[i]->Predict(folds[i][c]->GetMeasurementVectorByIndex(s));
             TargetListSample->PushBack(res);
             res[0] = m_MapOfIndices.at(c);
             RefTargetListSample->PushBack(res);
@@ -213,7 +213,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     {
       typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
       RealType meanFscores = 0;
-      for (int i = 0; i < Fscores.Size(); ++i)
+      for (unsigned i = 0; i < Fscores.Size(); ++i)
         meanFscores += (RealType) Fscores[i];
       *outGridsearchIt = meanFscores/m_ClassNb;
     }
@@ -390,7 +390,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
     Decomposition(m_Covariances[i], m_Q[i], m_EigenValues[i]);
 
     // Precompute lambda^(-1/2) * Q and log(det lambda)
-    for (int j = 0; j < m_FeatNb; ++j)
+    for (unsigned j = 0; j < m_FeatNb; ++j)
     {
       lambda = 1 / sqrt(m_EigenValues[i][j] + m_Tau);
       // Transposition and row multiplication at the same time
@@ -408,7 +408,7 @@ template <class TInputValue, class TTargetValue>
 typename GMMMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
 GMMMachineLearningModel<TInputValue,TTargetValue>
-::DoPredict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
+::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
   // Convert input data
   VectorType input(m_FeatNb);
@@ -418,7 +418,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   std::vector<RealType> decisionFct(m_CstDecision);
   VectorType lambdaQInputC(m_FeatNb);
   VectorType input_c(m_FeatNb);
-  for (int i = 0; i < m_ClassNb; ++i)
+  for (unsigned i = 0; i < m_ClassNb; ++i)
   {
     input_c = input - m_Means[i];
     lambdaQInputC = m_LambdaQ[i] * input_c;
@@ -510,9 +510,9 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
   ofs << "CovarianceMatrices:" << std::endl;
   for (std::vector<MatrixType>::iterator classIt = m_Covariances.begin(); classIt != m_Covariances.end(); ++classIt)
   {
-    for (int j = 0; j < m_FeatNb; ++j)
+    for (unsigned j = 0; j < m_FeatNb; ++j)
     {
-      for (int k = 0; k < m_FeatNb; ++k)
+      for (unsigned k = 0; k < m_FeatNb; ++k)
         ofs << (*classIt)(j,k) << " ";
     }
     ofs << std::endl;

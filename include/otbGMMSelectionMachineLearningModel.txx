@@ -95,7 +95,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 {
   m_Fold.push_back( ClassSampleType::New() );
   m_Fold[m_Fold.size()-1]->SetSample( samples );
-  for (unsigned int i = start; i < end; ++i)
+  for (int i = start; i < end; ++i)
     m_Fold[m_Fold.size()-1]->AddInstance( input[i] );
 }
 
@@ -260,7 +260,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   m_CriterionBestValues.resize(selectedVarNb);
   m_SelectedVar.clear();
   std::vector<int> variablesPool(Superclass::m_FeatNb);
-  for (int i = 0; i < Superclass::m_FeatNb; ++i)
+  for (unsigned i = 0; i < Superclass::m_FeatNb; ++i)
     variablesPool[i] = i;
 
   // Start the forward search
@@ -299,7 +299,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     // Update submodel
     if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
     {
-      for (int i = 0; i < m_SubmodelCv.size(); ++i)
+      for (unsigned i = 0; i < m_SubmodelCv.size(); ++i)
         m_SubmodelCv[i]->SetSelectedVar(m_SelectedVar,0);
     }
 
@@ -308,7 +308,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
   // To be compatible with SFFS and save
   m_BestSets.resize(m_SelectedVar.size());
-  for (int i = 0; i < m_SelectedVar.size(); ++i)
+  for (unsigned i = 0; i < m_SelectedVar.size(); ++i)
   {
     std::vector<int> v(m_SelectedVar.begin(),m_SelectedVar.begin()+i+1);
     m_BestSets[i] = v;
@@ -327,7 +327,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
   m_CriterionBestValues.clear();
   m_SelectedVar.clear();
   std::vector<int> variablesPool(Superclass::m_FeatNb);
-  for (int i = 0; i < Superclass::m_FeatNb; ++i)
+  for (unsigned i = 0; i < Superclass::m_FeatNb; ++i)
     variablesPool[i] = i;
 
   m_BestSets.clear();
@@ -359,7 +359,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
     argMaxValue = std::distance(criterionVal.begin(), std::max_element(criterionVal.begin(), criterionVal.end()));
     currentSelectedVarNb++;
 
-    if ((currentSelectedVarNb <= m_CriterionBestValues.size()) && (criterionVal[argMaxValue] < m_CriterionBestValues[currentSelectedVarNb-1]))
+    if ((currentSelectedVarNb <= (int)m_CriterionBestValues.size()) && (criterionVal[argMaxValue] < m_CriterionBestValues[currentSelectedVarNb-1]))
     {
       m_SelectedVar = m_BestSets[currentSelectedVarNb-1];
       variablesPool = bestSetsPools[currentSelectedVarNb-1];
@@ -373,11 +373,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       // Update submodel
       if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
       {
-        for (int i = 0; i < m_SubmodelCv.size(); ++i)
+        for (unsigned i = 0; i < m_SubmodelCv.size(); ++i)
           m_SubmodelCv[i]->SetSelectedVar(m_SelectedVar,0);
       }
 
-      if (currentSelectedVarNb > m_CriterionBestValues.size())
+      if (currentSelectedVarNb > (int) m_CriterionBestValues.size())
       {
         m_CriterionBestValues.push_back(criterionVal[argMaxValue]);
         m_BestSets.push_back(m_SelectedVar);
@@ -401,11 +401,11 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
         if ( (criterion.compare("accuracy") == 0)||(criterion.compare("kappa") == 0)||(criterion.compare("f1mean") == 0) )
         {
           // COULD BE PARALLELIZED but need to see if it is better to parallelize here on each fold or inside ComputeClassifRate
-          for (int i = 0; i < m_SubmodelCv.size(); ++i)
+          for (unsigned i = 0; i < m_SubmodelCv.size(); ++i)
             m_SubmodelCv[i]->ComputeClassifRate(criterionValBackward,"backward",m_SelectedVar,criterion);
 
           // Compute mean instead of keeping sum of criterion for all folds (not necessary)
-          for (int i = 0; i < criterionValBackward.size(); ++i)
+          for (unsigned i = 0; i < criterionValBackward.size(); ++i)
             criterionValBackward[i] /= m_SubmodelCv.size();
         }
         else if (criterion.compare("jm") == 0)
@@ -461,7 +461,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       // Predict labels with variables k added
       for (unsigned int i = 0; i < m_Fold.size(); ++i)
       {
-        for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
+        for (unsigned j = 0; j < Superclass::m_NbSpl[i]; ++j)
         {
           sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
 
@@ -492,7 +492,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       {
         typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
         RealType meanFscores = 0;
-        for (int i = 0; i < Fscores.Size(); ++i)
+        for (unsigned i = 0; i < Fscores.Size(); ++i)
           meanFscores += (RealType) Fscores[i];
         criterionVal[k] += meanFscores/Superclass::m_ClassNb;
       }
@@ -561,7 +561,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
         for (unsigned int i = 0; i < m_Fold.size(); ++i)
         {
-          for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
+          for (unsigned j = 0; j < Superclass::m_NbSpl[i]; ++j)
           {
             sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
 
@@ -597,7 +597,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 
         for (unsigned int i = 0; i < m_Fold.size(); ++i)
         {
-          for (int j = 0; j < Superclass::m_NbSpl[i]; ++j)
+          for (unsigned j = 0; j < Superclass::m_NbSpl[i]; ++j)
           {
             sample = m_Fold[i]->GetMeasurementVectorByIndex(j);
 
@@ -637,7 +637,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       {
         typename ConfusionMatrixType::MeasurementType Fscores = confM->GetFScores();
         RealType meanFscores = 0;
-        for (int i = 0; i < Fscores.Size(); ++i)
+        for (unsigned i = 0; i < Fscores.Size(); ++i)
           meanFscores += (RealType) Fscores[i];
         criterionVal[k] += meanFscores/Superclass::m_ClassNb;
       }
@@ -790,7 +790,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::ComputeDivKL(std::vector<RealType> & divKL, const std::string direction, std::vector<int> & variablesPool)
 {
   // Get info
-  int selectedVarNb = m_SelectedVar.size();
+  int selectedVarNb = (int) m_SelectedVar.size();
 
   if (m_SelectedVar.empty())
   {
@@ -881,7 +881,7 @@ GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
       else if (direction.compare("backward")==0)
       {
         std::vector<int>::iterator varIt = newSelectedVar.begin();
-        for (unsigned int i = 0; i < selectedVarNb; ++i)
+        for (unsigned i = 0; i < (unsigned) selectedVarNb; ++i)
         {
           if (i!=k)
           {
@@ -937,11 +937,11 @@ template <class TInputValue, class TTargetValue>
 typename GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::DoPredict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
+::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
   if (m_SelectedVar.empty())
   {
-    return Superclass::DoPredict(rawInput, quality);
+    return Superclass::Predict(rawInput, quality);
   }
   else
   {
