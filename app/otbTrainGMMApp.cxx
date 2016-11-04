@@ -95,7 +95,7 @@ private:
       "Adrien Lagrange (ad.lagrange@gmail.com) and Mathieu Fauvel.");
     SetDocLimitations("None");
     SetDocAuthors("Adrien Lagrange");
-    SetDocSeeAlso("See also git depository https://github.com/Laadr/otbExternalFastFeaturesSelection.");
+    SetDocSeeAlso("See also git depository https://github.com/Laadr/otbFFSforGMM.");
 
     AddDocTag(Tags::Learning);
 

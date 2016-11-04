@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.9)
-project(OTBFastFeaturesSelection)
-set(OTBFastFeaturesSelection_LIBRARIES OTBFastFeaturesSelection)
+project(OTBFFSforGMM)
+set(OTBFFSforGMM_LIBRARIES OTBFFSforGMM)
 
 # # check for OpenMP
 # find_package(OpenMP)
