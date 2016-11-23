@@ -937,11 +937,11 @@ template <class TInputValue, class TTargetValue>
 typename GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
 GMMSelectionMachineLearningModel<TInputValue,TTargetValue>
-::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
+::DoPredict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
   if (m_SelectedVar.empty())
   {
-    return Superclass::Predict(rawInput, quality);
+    return Superclass::DoPredict(rawInput, quality);
   }
   else
   {

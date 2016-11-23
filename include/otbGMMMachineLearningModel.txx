@@ -177,7 +177,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
         {
           for (unsigned s = 0; s < (m_NbSpl[c] - i*nbSplFold); ++s)
           {
-            res = submodelCv[i]->Predict(folds[i][c]->GetMeasurementVectorByIndex(s));
+            res = submodelCv[i]->DoPredict(folds[i][c]->GetMeasurementVectorByIndex(s));
             TargetListSample->PushBack(res);
             res[0] = m_MapOfIndices.at(c);
             RefTargetListSample->PushBack(res);
@@ -187,7 +187,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
         {
           for (unsigned s = 0; s < nbSplFold; ++s)
           {
-            res = submodelCv[i]->Predict(folds[i][c]->GetMeasurementVectorByIndex(s));
+            res = submodelCv[i]->DoPredict(folds[i][c]->GetMeasurementVectorByIndex(s));
             TargetListSample->PushBack(res);
             res[0] = m_MapOfIndices.at(c);
             RefTargetListSample->PushBack(res);
@@ -408,7 +408,7 @@ template <class TInputValue, class TTargetValue>
 typename GMMMachineLearningModel<TInputValue,TTargetValue>
 ::TargetSampleType
 GMMMachineLearningModel<TInputValue,TTargetValue>
-::Predict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
+::DoPredict(const InputSampleType & rawInput, ConfidenceValueType *quality) const
 {
   // Convert input data
   VectorType input(m_FeatNb);
