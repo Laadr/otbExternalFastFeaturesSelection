@@ -131,7 +131,7 @@ protected:
   std::vector<RealType> m_Logprop;
 
   /** Vector of model for cross-validation */
-  std::vector<GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::Pointer > m_SubmodelCv;
+  std::vector<typename GMMSelectionMachineLearningModel<TInputValue, TTargetValue>::Pointer > m_SubmodelCv;
 
   /** Array containing id of test samples for each class for cross validation */
   std::vector<ClassSamplePointer> m_Fold;
