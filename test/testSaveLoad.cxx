@@ -5,7 +5,6 @@
 #include "otbListSampleGenerator.h"
 #include "otbGMMMachineLearningModel.h"
 #include "otbGMMSelectionMachineLearningModel.h"
-#include "otbNormalBayesMachineLearningModel.h"
 
 
 #include "otbVectorImage.h"
