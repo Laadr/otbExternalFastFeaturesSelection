@@ -459,7 +459,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMMachineLearningModel<TInputValue,TTargetValue>
-::Save(const std::string & filename, const std::string & name)
+::Save(const std::string & filename, const std::string & itkNotUsed(name))
 {
   // create and open a character archive for output
   std::ofstream ofs(filename.c_str(), std::ios::out);
@@ -565,7 +565,7 @@ GMMMachineLearningModel<TInputValue,TTargetValue>
 template <class TInputValue, class TTargetValue>
 void
 GMMMachineLearningModel<TInputValue,TTargetValue>
-::Load(const std::string & filename, const std::string & name)
+::Load(const std::string & filename, const std::string & itkNotUsed(name))
 {
   Superclass::m_ConfidenceIndex = true;
 

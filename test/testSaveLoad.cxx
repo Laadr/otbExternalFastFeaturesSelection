@@ -13,7 +13,7 @@
 #include "otbVectorData.h"
 #include "otbVectorDataFileReader.h"
 
-int testSaveLoad(int argc, char * argv[])
+int testSaveLoad(int itkNotUsed(argc), char * itkNotUsed(argv)[])
 {
 
     int nbSamples          = 600;
