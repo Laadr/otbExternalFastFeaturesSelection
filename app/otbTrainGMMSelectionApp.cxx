@@ -164,7 +164,7 @@ private:
 
     AddParameter(ParameterType_Choice, "gmm.crit", "Criterion function for selection");
     AddChoice("gmm.crit.jm", "Jeffries-Matusita distance");
-    AddChoice("gmm.crit.divkl", "Kullback–Leibler divergence");
+    AddChoice("gmm.crit.divkl", "Kullback-Leibler divergence");
     AddChoice("gmm.crit.accuracy", "Overall Accuracy");
     AddChoice("gmm.crit.kappa", "Cohen's kappa");
     AddChoice("gmm.crit.f1mean", "Mean of F1-scores");
