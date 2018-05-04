@@ -134,10 +134,9 @@ private:
     SetParameterDescription("sample.bm", "Bound the number of samples for each class by the number of available samples by the smallest class. Proportions between training and validation are respected. Default is true (=1).");
 
 
-    AddParameter(ParameterType_Empty, "sample.edg", "On edge pixel inclusion");
+    AddParameter(ParameterType_Bool, "sample.edg", "On edge pixel inclusion");
     SetParameterDescription("sample.edg",
                             "Takes pixels on polygon edge into consideration when building training and validation samples.");
-    MandatoryOff("sample.edg");
 
     AddParameter(ParameterType_Float, "sample.vtr", "Training and validation sample ratio");
     SetParameterDescription("sample.vtr",
